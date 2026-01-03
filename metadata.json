@@ -1,0 +1,7 @@
+{
+  "name": "RHRAH LUXURY",
+  "description": "An elegant and modern e-commerce platform for luxury abayas and premium fabrics, featuring a seamless shopping bag experience and AI-driven style assistance.",
+  "requestFramePermissions": [
+    "microphone"
+  ]
+}
