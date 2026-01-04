@@ -1,6 +1,6 @@
 
 import React, { useState, useRef, useMemo } from 'react';
-import { LayoutDashboard, Package, ShoppingCart, Plus, LogOut, Trash2, ArrowUpDown, Upload, Edit3, X, RefreshCcw, Search, BarChart3, MapPin, Phone, Mail, User, Eye, TrendingUp, Download } from 'lucide-react';
+import { LayoutDashboard, Package, ShoppingCart, Plus, LogOut, Trash2, ArrowUpDown, Upload, Edit3, X, RefreshCcw, Search, BarChart3, MapPin, Phone, Mail, User, Eye, TrendingUp, Download, ArrowLeft, History } from 'lucide-react';
 import { Product, Order, ViewLog } from '../types';
 
 interface AdminProps {
@@ -18,6 +18,7 @@ const Admin: React.FC<AdminProps> = ({ products, orders, viewLogs, setProducts, 
   const [editingId, setEditingId] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [showProductIdsInGraph, setShowProductIdsInGraph] = useState(false);
+  const [viewingCustomerEmail, setViewingCustomerEmail] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   
   const [formData, setFormData] = useState<Partial<Product>>({
@@ -152,7 +153,7 @@ const Admin: React.FC<AdminProps> = ({ products, orders, viewLogs, setProducts, 
     }
 
     const headers = ["Order ID", "Date", "Customer Name", "Email", "Phone", "Address", "Items", "Total (NGN)", "Status"];
-    const csvRows = orders.map(order => {
+    const csvRows = (viewingCustomerEmail ? orders.filter(o => o.customerEmail === viewingCustomerEmail) : orders).map(order => {
       const itemSummary = order.items.map(i => `${i.quantity}x ${i.name}`).join(" | ");
       return [
         order.id,
@@ -172,7 +173,7 @@ const Admin: React.FC<AdminProps> = ({ products, orders, viewLogs, setProducts, 
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.setAttribute("href", url);
-    link.setAttribute("download", `Zarhrah_Luxury_Orders_${new Date().toISOString().split('T')[0]}.csv`);
+    link.setAttribute("download", `Zarhrah_Luxury_Orders_${viewingCustomerEmail ? viewingCustomerEmail.split('@')[0] + '_' : ''}${new Date().toISOString().split('T')[0]}.csv`);
     link.style.visibility = 'hidden';
     document.body.appendChild(link);
     link.click();
@@ -183,6 +184,13 @@ const Admin: React.FC<AdminProps> = ({ products, orders, viewLogs, setProducts, 
     p.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
     p.category.toLowerCase().includes(searchTerm.toLowerCase())
   );
+
+  const displayedOrders = useMemo(() => {
+    if (viewingCustomerEmail) {
+      return orders.filter(o => o.customerEmail === viewingCustomerEmail);
+    }
+    return orders;
+  }, [orders, viewingCustomerEmail]);
 
   if (!isLoggedIn) {
     return (
@@ -218,28 +226,28 @@ const Admin: React.FC<AdminProps> = ({ products, orders, viewLogs, setProducts, 
           <h2 className="text-sm font-bold tracking-[0.2em] uppercase mb-12">Dashboard</h2>
           <nav className="space-y-8">
             <button 
-              onClick={() => setActiveTab('products')}
+              onClick={() => { setActiveTab('products'); setViewingCustomerEmail(null); }}
               className={`flex items-center space-x-4 text-[10px] font-bold tracking-widest uppercase transition-colors ${activeTab === 'products' ? 'gold-text' : 'text-stone-400 hover:text-stone-900'}`}
             >
               <Package size={16} />
               <span>Products</span>
             </button>
             <button 
-              onClick={() => setActiveTab('inventory')}
+              onClick={() => { setActiveTab('inventory'); setViewingCustomerEmail(null); }}
               className={`flex items-center space-x-4 text-[10px] font-bold tracking-widest uppercase transition-colors ${activeTab === 'inventory' ? 'gold-text' : 'text-stone-400 hover:text-stone-900'}`}
             >
               <ArrowUpDown size={16} />
               <span>Inventory</span>
             </button>
             <button 
-              onClick={() => setActiveTab('orders')}
+              onClick={() => { setActiveTab('orders'); setViewingCustomerEmail(null); }}
               className={`flex items-center space-x-4 text-[10px] font-bold tracking-widest uppercase transition-colors ${activeTab === 'orders' ? 'gold-text' : 'text-stone-400 hover:text-stone-900'}`}
             >
               <ShoppingCart size={16} />
               <span>Orders</span>
             </button>
             <button 
-              onClick={() => setActiveTab('analytics')}
+              onClick={() => { setActiveTab('analytics'); setViewingCustomerEmail(null); }}
               className={`flex items-center space-x-4 text-[10px] font-bold tracking-widest uppercase transition-colors ${activeTab === 'analytics' ? 'gold-text' : 'text-stone-400 hover:text-stone-900'}`}
             >
               <BarChart3 size={16} />
@@ -464,29 +472,49 @@ const Admin: React.FC<AdminProps> = ({ products, orders, viewLogs, setProducts, 
         {activeTab === 'orders' && (
           <div className="space-y-12">
             <div className="flex justify-between items-center mb-4">
-              <h3 className="text-[10px] font-bold tracking-[0.3em] uppercase text-stone-400">Transaction History</h3>
+              <div className="flex items-center space-x-4">
+                {viewingCustomerEmail && (
+                  <button 
+                    onClick={() => setViewingCustomerEmail(null)}
+                    className="p-2 text-stone-400 hover:text-stone-900 bg-white border border-stone-200 rounded-sm shadow-sm transition-all"
+                  >
+                    <ArrowLeft size={16} />
+                  </button>
+                )}
+                <div>
+                  <h3 className="text-[10px] font-bold tracking-[0.3em] uppercase text-stone-400">
+                    {viewingCustomerEmail ? 'Customer Order History' : 'Transaction History'}
+                  </h3>
+                  {viewingCustomerEmail && (
+                    <p className="text-xs font-bold text-stone-900 mt-1 flex items-center">
+                      <History size={12} className="mr-1.5 gold-text" /> 
+                      Showing {displayedOrders.length} records for {displayedOrders[0]?.customerName}
+                    </p>
+                  )}
+                </div>
+              </div>
               <button 
                 onClick={exportOrdersToCSV}
                 className="flex items-center space-x-2 bg-stone-900 text-white px-5 py-2.5 text-[9px] font-bold uppercase tracking-widest hover:bg-[#C5A059] transition-all rounded-sm shadow-sm"
               >
                 <Download size={14} />
-                <span>Export CSV Report</span>
+                <span>Export {viewingCustomerEmail ? 'Customer ' : ''}CSV Report</span>
               </button>
             </div>
 
-            {orders.length === 0 ? (
+            {displayedOrders.length === 0 ? (
               <div className="p-20 text-center bg-white border border-dashed border-stone-300">
                 <p className="text-stone-400 font-serif italic">No orders logged.</p>
               </div>
             ) : (
-              orders.map(order => (
-                <div key={order.id} className="bg-white border border-stone-200 shadow-sm overflow-hidden">
+              displayedOrders.map(order => (
+                <div key={order.id} className="bg-white border border-stone-200 shadow-sm overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-500">
                   <div className="bg-stone-50 px-8 py-6 border-b border-stone-100 flex justify-between items-center">
                     <div>
                       <h4 className="font-bold text-lg mb-1">{order.id}</h4>
                       <p className="text-[10px] text-stone-400 tracking-widest uppercase font-bold">{new Date(order.date).toLocaleString()}</p>
                     </div>
-                    <div className="relative group">
+                    <div className="relative group flex items-center space-x-4">
                       <select 
                         value={order.status}
                         onChange={(e) => updateOrderStatus(order.id, e.target.value as Order['status'])}
@@ -505,9 +533,14 @@ const Admin: React.FC<AdminProps> = ({ products, orders, viewLogs, setProducts, 
                     <div className="space-y-6">
                        <h5 className="text-[10px] font-bold uppercase tracking-widest gold-text pb-2 border-b border-stone-100">Customer Dossier</h5>
                        <div className="space-y-4">
-                          <div className="flex items-start space-x-3">
+                          <div className="flex items-start space-x-3 group">
                              <User size={14} className="text-stone-400 mt-0.5" />
-                             <p className="text-sm font-bold">{order.customerName}</p>
+                             <button 
+                                onClick={() => setViewingCustomerEmail(order.customerEmail)}
+                                className={`text-sm font-bold text-left hover:text-[#C5A059] transition-colors ${viewingCustomerEmail ? 'pointer-events-none' : 'hover:underline decoration-[#C5A059] underline-offset-4'}`}
+                             >
+                                {order.customerName}
+                             </button>
                           </div>
                           <div className="flex items-start space-x-3">
                              <Mail size={14} className="text-stone-400 mt-0.5" />
