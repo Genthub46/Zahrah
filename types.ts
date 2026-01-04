@@ -2,11 +2,13 @@
 export interface Product {
   id: string;
   name: string;
+  brand: string;
   price: number;
   image: string;
   description: string;
-  category: 'Apparel' | 'Footwear' | 'Accessories' | 'Beauty' | 'Travel';
+  category: 'Apparel' | 'Footwear' | 'Accessories' | 'Beauty' | 'Travel' | 'Watches' | 'Perfumes' | 'Bags';
   stock: number;
+  tags: string[];
 }
 
 export interface CartItem extends Product {

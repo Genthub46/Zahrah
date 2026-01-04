@@ -7,6 +7,7 @@ import Navbar from './components/Navbar';
 import Home from './pages/Home';
 import Checkout from './pages/Checkout';
 import Admin from './pages/Admin';
+import ProductDetail from './pages/ProductDetail';
 
 const App: React.FC = () => {
   const [products, setProducts] = useState<Product[]>(() => {
@@ -90,6 +91,7 @@ const App: React.FC = () => {
         <main className="flex-grow">
           <Routes>
             <Route path="/" element={<Home products={products} onAddToCart={addToCart} onLogView={logView} />} />
+            <Route path="/product/:id" element={<ProductDetail products={products} onAddToCart={addToCart} onLogView={logView} />} />
             <Route 
               path="/checkout" 
               element={

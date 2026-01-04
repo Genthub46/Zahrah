@@ -1,7 +1,8 @@
 
 import React, { useState, useRef, useMemo, useEffect } from 'react';
-import { LayoutDashboard, Package, ShoppingCart, Plus, LogOut, Trash2, ArrowUpDown, Upload, Edit3, X, RefreshCcw, Search, BarChart3, MapPin, Phone, Mail, User, Eye, TrendingUp, Download, ArrowLeft, History, CheckCircle2, Truck, ShieldCheck } from 'lucide-react';
+import { LayoutDashboard, Package, ShoppingCart, Plus, LogOut, Trash2, ArrowUpDown, Upload, Edit3, X, RefreshCcw, Search, BarChart3, MapPin, Phone, Mail, User, Eye, TrendingUp, Download, ArrowLeft, History, CheckCircle2, Truck, ShieldCheck, Tag, Ban } from 'lucide-react';
 import { Product, Order, ViewLog } from '../types';
+import Logo from '../components/Logo';
 
 interface AdminProps {
   products: Product[];
@@ -27,14 +28,17 @@ const Admin: React.FC<AdminProps> = ({ products, orders, viewLogs, setProducts, 
   
   const [formData, setFormData] = useState<Partial<Product>>({
     name: '',
+    brand: '',
     price: 0,
     image: '',
     description: '',
     category: 'Apparel',
-    stock: 0
+    stock: 0,
+    tags: []
   });
 
-  // Check for existing session on mount
+  const [tagInput, setTagInput] = useState('');
+
   useEffect(() => {
     const savedSession = localStorage.getItem(ADMIN_SESSION_KEY);
     if (savedSession) {
@@ -51,7 +55,6 @@ const Admin: React.FC<AdminProps> = ({ products, orders, viewLogs, setProducts, 
     }
   }, []);
 
-  // Calculate View Analytics
   const viewStats = useMemo(() => {
     const counts: Record<string, number> = {};
     viewLogs.forEach(log => {
@@ -66,6 +69,7 @@ const Admin: React.FC<AdminProps> = ({ products, orders, viewLogs, setProducts, 
   }, [viewLogs, products]);
 
   const maxViews = Math.max(...viewStats.map(s => s.views), 1);
+  const totalViews = Math.max(viewLogs.length, 1);
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
@@ -134,43 +138,60 @@ const Admin: React.FC<AdminProps> = ({ products, orders, viewLogs, setProducts, 
       return;
     }
 
+    // Process Tags
+    const finalTags = tagInput
+      .split(',')
+      .map(t => t.trim().toLowerCase())
+      .filter(t => t.length > 0);
+
+    const productData = { 
+      ...formData, 
+      tags: finalTags,
+      brand: formData.brand || 'Unbranded'
+    };
+
     if (editingId) {
       setProducts(prev => prev.map(p => 
-        p.id === editingId ? { ...p, ...formData as Product } : p
+        p.id === editingId ? { ...p, ...productData as Product } : p
       ));
       alert('Product updated successfully');
       setEditingId(null);
     } else {
       const product: Product = {
         id: `p-${Date.now()}`,
-        name: formData.name as string,
-        price: Number(formData.price),
-        image: formData.image as string,
-        description: formData.description || '',
-        category: (formData.category as any) || 'Apparel',
-        stock: Number(formData.stock) || 0
+        name: productData.name as string,
+        brand: productData.brand as string,
+        price: Number(productData.price),
+        image: productData.image as string,
+        description: productData.description || '',
+        category: (productData.category as any) || 'Apparel',
+        stock: Number(productData.stock) || 0,
+        tags: productData.tags as string[]
       };
       setProducts(prev => [...prev, product]);
       alert('Product added successfully');
     }
-    setFormData({ name: '', price: 0, image: '', description: '', category: 'Apparel', stock: 0 });
+    setFormData({ name: '', brand: '', price: 0, image: '', description: '', category: 'Apparel', stock: 0, tags: [] });
+    setTagInput('');
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
   const startEdit = (product: Product) => {
     setEditingId(product.id);
     setFormData({ ...product });
+    setTagInput(product.tags.join(', '));
     setActiveTab('products');
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const cancelEdit = () => {
     setEditingId(null);
-    setFormData({ name: '', price: 0, image: '', description: '', category: 'Apparel', stock: 0 });
+    setFormData({ name: '', brand: '', price: 0, image: '', description: '', category: 'Apparel', stock: 0, tags: [] });
+    setTagInput('');
   };
 
   const deleteProduct = (id: string) => {
-    if (window.confirm('Are you sure you want to delete this product from the catalog?')) {
+    if (window.confirm('Are you sure you want to delete this product?')) {
       setProducts(prev => prev.filter(p => p.id !== id));
     }
   };
@@ -179,48 +200,11 @@ const Admin: React.FC<AdminProps> = ({ products, orders, viewLogs, setProducts, 
     setOrders(prev => prev.map(o => o.id === orderId ? { ...o, status: newStatus } : o));
   };
 
-  const toggleSentOut = (orderId: string, currentStatus: string) => {
-    const newStatus = currentStatus === 'Shipped' ? 'Pending' : 'Shipped';
-    updateOrderStatus(orderId, newStatus as Order['status']);
-  };
-
-  const exportOrdersToCSV = () => {
-    if (orders.length === 0) {
-      alert("No orders available to export.");
-      return;
-    }
-
-    const headers = ["Order ID", "Date", "Customer Name", "Email", "Phone", "Address", "Items", "Total (NGN)", "Status"];
-    const csvRows = (viewingCustomerEmail ? orders.filter(o => o.customerEmail === viewingCustomerEmail) : orders).map(order => {
-      const itemSummary = order.items.map(i => `${i.quantity}x ${i.name}`).join(" | ");
-      return [
-        order.id,
-        new Date(order.date).toLocaleDateString(),
-        `"${order.customerName.replace(/"/g, '""')}"`,
-        order.customerEmail,
-        order.customerPhone,
-        `"${order.customerAddress.replace(/"/g, '""')}"`,
-        `"${itemSummary.replace(/"/g, '""')}"`,
-        order.total,
-        order.status
-      ].join(",");
-    });
-
-    const csvContent = [headers.join(","), ...csvRows].join("\n");
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.setAttribute("href", url);
-    link.setAttribute("download", `Zarhrah_Luxury_Orders_${viewingCustomerEmail ? viewingCustomerEmail.split('@')[0] + '_' : ''}${new Date().toISOString().split('T')[0]}.csv`);
-    link.style.visibility = 'hidden';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-  };
-
   const filteredProducts = products.filter(p => 
     p.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-    p.category.toLowerCase().includes(searchTerm.toLowerCase())
+    p.brand.toLowerCase().includes(searchTerm.toLowerCase()) || 
+    p.category.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    p.tags.some(t => t.toLowerCase().includes(searchTerm.toLowerCase()))
   );
 
   const displayedOrders = useMemo(() => {
@@ -233,36 +217,21 @@ const Admin: React.FC<AdminProps> = ({ products, orders, viewLogs, setProducts, 
   if (!isLoggedIn) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-stone-900 px-4">
-        <div className="max-w-md w-full bg-white p-12 rounded-sm shadow-2xl">
+        <div className="max-w-md w-full bg-white p-12 rounded-sm shadow-2xl animate-in fade-in zoom-in duration-500">
           <div className="text-center mb-10">
-            <h2 className="text-2xl font-bold tracking-[0.3em] uppercase mb-2">Atelier Access</h2>
+            <Logo size={100} className="mx-auto mb-6" />
+            <h2 className="text-2xl font-bold tracking-[0.3em] uppercase mb-2 text-stone-900">Atelier Access</h2>
             <p className="text-stone-400 text-[10px] font-bold tracking-widest uppercase">Zarhrah Luxury Admin</p>
           </div>
           <form onSubmit={handleLogin} className="space-y-6">
-            <div className="space-y-4">
-              <input
-                type="password"
-                placeholder="PASSCODE"
-                value={passcode}
-                onChange={(e) => setPasscode(e.target.value)}
-                className="w-full px-6 py-4 bg-stone-50 border border-stone-200 focus:outline-none focus:ring-1 focus:ring-[#C5A059] text-center tracking-[0.5em] text-lg"
-                autoFocus
-              />
-              <div className="flex items-center justify-center space-x-3">
-                <label className="relative flex items-center cursor-pointer">
-                  <input 
-                    type="checkbox" 
-                    checked={rememberMe}
-                    onChange={(e) => setRememberMe(e.target.checked)}
-                    className="sr-only peer"
-                  />
-                  <div className="w-4 h-4 border border-stone-200 peer-checked:bg-[#C5A059] peer-checked:border-[#C5A059] transition-all flex items-center justify-center">
-                    {rememberMe && <CheckCircle2 size={10} className="text-white" />}
-                  </div>
-                  <span className="ml-2 text-[9px] font-bold text-stone-400 uppercase tracking-widest">Remember this device</span>
-                </label>
-              </div>
-            </div>
+            <input
+              type="password"
+              placeholder="PASSCODE"
+              value={passcode}
+              onChange={(e) => setPasscode(e.target.value)}
+              className="w-full px-6 py-4 bg-stone-50 border border-stone-200 focus:outline-none focus:ring-1 focus:ring-[#C5A059] text-center tracking-[0.5em] text-lg"
+              autoFocus
+            />
             <button className="w-full gold-bg text-white py-4 font-bold tracking-[0.2em] text-[10px] hover:bg-stone-800 transition-all uppercase shadow-lg flex items-center justify-center space-x-2">
               <ShieldCheck size={14} />
               <span>Enter Dashboard</span>
@@ -275,7 +244,6 @@ const Admin: React.FC<AdminProps> = ({ products, orders, viewLogs, setProducts, 
 
   return (
     <div className="pt-20 min-h-screen bg-stone-50 flex">
-      {/* Sidebar */}
       <aside className="w-64 bg-white border-r border-stone-200 fixed h-full hidden md:block">
         <div className="p-10">
           <h2 className="text-sm font-bold tracking-[0.2em] uppercase mb-12">Dashboard</h2>
@@ -308,10 +276,7 @@ const Admin: React.FC<AdminProps> = ({ products, orders, viewLogs, setProducts, 
               <BarChart3 size={16} />
               <span>Analytics</span>
             </button>
-            <button 
-              onClick={handleLogout}
-              className="flex items-center space-x-4 text-[10px] font-bold tracking-widest uppercase text-stone-400 hover:text-red-600 transition-colors pt-12 border-t border-stone-100 w-full"
-            >
+            <button onClick={handleLogout} className="flex items-center space-x-4 text-[10px] font-bold tracking-widest uppercase text-stone-400 hover:text-red-600 transition-colors pt-12 border-t border-stone-100 w-full">
               <LogOut size={16} />
               <span>Log Out</span>
             </button>
@@ -319,109 +284,17 @@ const Admin: React.FC<AdminProps> = ({ products, orders, viewLogs, setProducts, 
         </div>
       </aside>
 
-      {/* Main Content */}
       <main className="flex-1 md:ml-64 p-8 md:p-16">
-        <header className="flex justify-between items-end mb-16">
-          <div>
-            <span className="gold-text font-bold text-[10px] tracking-[0.4em] uppercase block mb-2">Zarhrah Atelier</span>
-            <h1 className="text-4xl font-bold capitalize">{activeTab} Management</h1>
-          </div>
+        <header className="mb-16">
+          <span className="gold-text font-bold text-[10px] tracking-[0.4em] uppercase block mb-2">Zarhrah Atelier</span>
+          <h1 className="text-4xl font-bold capitalize">{activeTab} Management</h1>
         </header>
-
-        {activeTab === 'analytics' && (
-          <div className="space-y-12 animate-in fade-in duration-500">
-            {/* Summary Metrics */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-               <div className="bg-stone-900 text-white p-8 rounded-sm shadow-sm relative overflow-hidden group">
-                  <div className="absolute -right-4 -bottom-4 opacity-10 group-hover:scale-110 transition-transform duration-500">
-                    <Eye size={80} />
-                  </div>
-                  <p className="text-[9px] font-bold uppercase tracking-widest text-stone-400 mb-2">Global Impressions</p>
-                  <p className="text-3xl font-bold">{viewLogs.length}</p>
-               </div>
-               <div className="bg-white border border-stone-200 p-8 rounded-sm shadow-sm">
-                  <p className="text-[9px] font-bold uppercase tracking-widest text-stone-400 mb-2">Conversion Ratio</p>
-                  <p className="text-3xl font-bold">{viewLogs.length > 0 ? ((orders.length / viewLogs.length) * 100).toFixed(1) : 0}%</p>
-               </div>
-               <div className="bg-white border border-stone-200 p-8 rounded-sm shadow-sm">
-                  <p className="text-[9px] font-bold uppercase tracking-widest text-stone-400 mb-2">Active Catalog</p>
-                  <p className="text-3xl font-bold">{products.length}</p>
-               </div>
-               <div className="bg-[#C5A059] text-white p-8 rounded-sm shadow-sm relative overflow-hidden group">
-                  <div className="absolute -right-4 -bottom-4 opacity-20 group-hover:scale-110 transition-transform duration-500">
-                    <TrendingUp size={80} />
-                  </div>
-                  <p className="text-[9px] font-bold uppercase tracking-widest opacity-80 mb-2">Session Revenue</p>
-                  <p className="text-3xl font-bold">N{orders.reduce((sum, o) => sum + o.total, 0).toLocaleString()}</p>
-               </div>
-            </div>
-
-            {/* Main Traffic Graph */}
-            <section className="bg-white p-12 border border-stone-200 shadow-sm rounded-sm">
-              <div className="flex justify-between items-center mb-12 border-b border-stone-100 pb-6">
-                <div>
-                  <h3 className="text-[11px] font-bold tracking-widest uppercase mb-1">Product Traffic Analytics</h3>
-                  <p className="text-[9px] text-stone-400 uppercase tracking-widest">Visualizing engagement per boutique item</p>
-                </div>
-                <div className="flex items-center space-x-3">
-                  <span className="text-[9px] font-bold uppercase tracking-widest text-stone-400">View as</span>
-                  <button 
-                    onClick={() => setShowProductIdsInGraph(!showProductIdsInGraph)}
-                    className="bg-stone-50 border border-stone-200 px-3 py-1.5 text-[9px] font-bold uppercase tracking-widest hover:bg-stone-100 transition-colors"
-                  >
-                    {showProductIdsInGraph ? 'Product Names' : 'Product IDs'}
-                  </button>
-                </div>
-              </div>
-
-              <div className="space-y-8">
-                {viewStats.map((stat, index) => (
-                  <div key={stat.id} className="group">
-                    <div className="flex justify-between items-end mb-2">
-                      <div className="flex items-baseline space-x-3">
-                        <span className="text-[9px] font-bold text-stone-300">#{index + 1}</span>
-                        <span className="text-[10px] font-bold uppercase tracking-widest group-hover:text-[#C5A059] transition-colors">
-                          {showProductIdsInGraph ? stat.id : stat.name}
-                        </span>
-                      </div>
-                      <span className="text-[10px] font-bold gold-text bg-stone-50 px-2 py-1 rounded-sm">
-                        {stat.views.toLocaleString()} VIEWS
-                      </span>
-                    </div>
-                    <div className="w-full bg-stone-50 h-5 rounded-sm overflow-hidden border border-stone-100 p-0.5">
-                      <div 
-                        className="h-full bg-stone-900 group-hover:bg-[#C5A059] transition-all duration-1000 ease-out flex items-center justify-end px-2"
-                        style={{ width: `${(stat.views / maxViews) * 100}%` }}
-                      >
-                        {stat.views > (maxViews * 0.2) && (
-                          <span className="text-[8px] font-bold text-white tracking-widest opacity-0 group-hover:opacity-100 transition-opacity">
-                            {((stat.views / viewLogs.length) * 100).toFixed(0)}% SHARE
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                ))}
-                
-                {viewStats.length === 0 && (
-                  <div className="py-20 text-center">
-                    <BarChart3 className="mx-auto text-stone-200 mb-4" size={48} />
-                    <p className="text-stone-400 font-serif italic text-lg">Your atelier's traffic data will appear here.</p>
-                  </div>
-                )}
-              </div>
-            </section>
-          </div>
-        )}
 
         {activeTab === 'products' && (
           <div className="grid lg:grid-cols-2 gap-16">
             <section className="bg-white p-10 border border-stone-200 shadow-sm relative h-fit">
               {editingId && (
-                <button 
-                  onClick={cancelEdit}
-                  className="absolute top-4 right-4 text-stone-400 hover:text-stone-900 flex items-center text-[9px] font-bold uppercase tracking-widest"
-                >
+                <button onClick={cancelEdit} className="absolute top-4 right-4 text-stone-400 hover:text-stone-900 flex items-center text-[9px] font-bold uppercase tracking-widest">
                   <X size={14} className="mr-1" /> Cancel Edit
                 </button>
               )}
@@ -430,6 +303,17 @@ const Admin: React.FC<AdminProps> = ({ products, orders, viewLogs, setProducts, 
                 {editingId ? 'Edit Product' : 'Add New Product'}
               </h3>
               <form onSubmit={handleSubmit} className="space-y-6">
+                <div>
+                  <label className="block text-[9px] font-bold tracking-widest uppercase text-stone-400 mb-2">Brand / Origin</label>
+                  <input
+                    type="text"
+                    required
+                    value={formData.brand}
+                    onChange={(e) => setFormData({ ...formData, brand: e.target.value })}
+                    className="w-full p-4 bg-stone-50 border border-stone-200 focus:outline-none focus:ring-1 focus:ring-[#C5A059] text-xs"
+                    placeholder="e.g. ZARA UK, Tom Ford, Atelier ZL"
+                  />
+                </div>
                 <div>
                   <label className="block text-[9px] font-bold tracking-widest uppercase text-stone-400 mb-2">Product Name</label>
                   <input
@@ -443,6 +327,22 @@ const Admin: React.FC<AdminProps> = ({ products, orders, viewLogs, setProducts, 
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
+                    <label className="block text-[9px] font-bold tracking-widest uppercase text-stone-400 mb-2">Category</label>
+                    <select
+                      value={formData.category}
+                      onChange={(e) => setFormData({ ...formData, category: e.target.value as any })}
+                      className="w-full p-4 bg-stone-50 border border-stone-200 focus:outline-none focus:ring-1 focus:ring-[#C5A059] text-xs"
+                    >
+                      <option value="Apparel">Apparel (Clothes)</option>
+                      <option value="Footwear">Footwear (Shoes)</option>
+                      <option value="Watches">Watches</option>
+                      <option value="Perfumes">Perfumes</option>
+                      <option value="Bags">Bags & Luggage</option>
+                      <option value="Accessories">Other Accessories</option>
+                      <option value="Beauty">Beauty & Skincare</option>
+                    </select>
+                  </div>
+                  <div>
                     <label className="block text-[9px] font-bold tracking-widest uppercase text-stone-400 mb-2">Price (NGN)</label>
                     <input
                       type="number"
@@ -452,33 +352,40 @@ const Admin: React.FC<AdminProps> = ({ products, orders, viewLogs, setProducts, 
                       className="w-full p-4 bg-stone-50 border border-stone-200 focus:outline-none focus:ring-1 focus:ring-[#C5A059] text-xs"
                     />
                   </div>
-                  <div>
-                    <label className="block text-[9px] font-bold tracking-widest uppercase text-stone-400 mb-2">Inventory Stock</label>
+                </div>
+                <div>
+                  <label className="block text-[9px] font-bold tracking-widest uppercase text-stone-400 mb-2">Labels / Tags (Comma separated)</label>
+                  <div className="relative">
+                    <Tag className="absolute left-4 top-1/2 -translate-y-1/2 text-stone-400" size={14} />
                     <input
-                      type="number"
-                      required
-                      value={formData.stock}
-                      onChange={(e) => setFormData({ ...formData, stock: Number(e.target.value) })}
-                      className="w-full p-4 bg-stone-50 border border-stone-200 focus:outline-none focus:ring-1 focus:ring-[#C5A059] text-xs"
+                      type="text"
+                      value={tagInput}
+                      onChange={(e) => setTagInput(e.target.value)}
+                      className="w-full p-4 pl-10 bg-stone-50 border border-stone-200 focus:outline-none focus:ring-1 focus:ring-[#C5A059] text-xs"
+                      placeholder="e.g. luxury, summer, limited-edition, zara"
                     />
                   </div>
                 </div>
                 <div>
+                  <label className="block text-[9px] font-bold tracking-widest uppercase text-stone-400 mb-2">Inventory Stock</label>
+                  <input
+                    type="number"
+                    required
+                    value={formData.stock}
+                    onChange={(e) => setFormData({ ...formData, stock: Number(e.target.value) })}
+                    className={`w-full p-4 border focus:outline-none text-xs transition-colors ${formData.stock === 0 ? 'bg-red-50 border-red-200 focus:ring-red-400' : 'bg-stone-50 border-stone-200 focus:ring-[#C5A059]'}`}
+                  />
+                </div>
+                <div>
                   <label className="block text-[9px] font-bold tracking-widest uppercase text-stone-400 mb-2">Upload Image</label>
-                  <div 
-                    onClick={() => fileInputRef.current?.click()}
-                    className="border-2 border-dashed border-stone-200 p-8 text-center hover:border-[#C5A059] transition-colors cursor-pointer group"
-                  >
+                  <div onClick={() => fileInputRef.current?.click()} className="border-2 border-dashed border-stone-200 p-8 text-center hover:border-[#C5A059] transition-colors cursor-pointer group">
                     <input type="file" ref={fileInputRef} onChange={handleFileChange} className="hidden" accept="image/*" />
                     {formData.image ? (
-                      <div className="space-y-4">
-                        <img src={formData.image} className="h-32 mx-auto object-cover rounded-sm shadow-md" alt="Preview" />
-                        <p className="text-[9px] font-bold text-[#C5A059] uppercase tracking-widest">Image Loaded • Click to Change</p>
-                      </div>
+                      <img src={formData.image} className="h-32 mx-auto object-cover rounded-sm shadow-md" alt="Preview" />
                     ) : (
                       <div className="space-y-2">
                         <Upload size={24} className="mx-auto text-stone-300 group-hover:text-[#C5A059] transition-colors" />
-                        <p className="text-[10px] font-bold text-stone-400 uppercase tracking-widest">Choose Device Photo</p>
+                        <p className="text-[10px] font-bold text-stone-400 uppercase tracking-widest">Choose Photo</p>
                       </div>
                     )}
                   </div>
@@ -491,26 +398,34 @@ const Admin: React.FC<AdminProps> = ({ products, orders, viewLogs, setProducts, 
 
             <section>
               <div className="flex justify-between items-center mb-8 pb-4 border-b border-stone-100">
-                <h3 className="text-[10px] font-bold tracking-widest uppercase">Live Catalog</h3>
+                <h3 className="text-[10px] font-bold tracking-widest uppercase">Catalog Lookup</h3>
                 <div className="relative">
                   <input 
                     type="text"
-                    placeholder="Search Catalog..."
+                    placeholder="Search name, brand, tag..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
-                    className="pl-8 pr-4 py-2 bg-stone-100 border-none focus:ring-1 focus:ring-[#C5A059] text-[10px] uppercase font-bold tracking-widest rounded-sm w-48"
+                    className="pl-8 pr-4 py-2 bg-stone-100 border-none focus:ring-1 focus:ring-[#C5A059] text-[10px] uppercase font-bold tracking-widest rounded-sm w-56"
                   />
                   <Search size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-stone-400" />
                 </div>
               </div>
-              <div className="space-y-4 max-h-[600px] overflow-y-auto pr-4">
+              <div className="space-y-4 max-h-[700px] overflow-y-auto pr-4">
                 {filteredProducts.map(p => (
-                  <div key={p.id} className="bg-white p-4 flex items-center justify-between border border-stone-200 group">
+                  <div key={p.id} className={`bg-white p-4 flex items-center justify-between border group transition-all ${p.stock <= 0 ? 'border-red-100 bg-red-50/20' : 'border-stone-200'}`}>
                     <div className="flex items-center space-x-4">
-                      <img src={p.image} className="w-12 h-16 object-cover rounded-sm bg-stone-50" />
+                      <img src={p.image} className={`w-12 h-16 object-cover rounded-sm ${p.stock <= 0 ? 'grayscale' : 'bg-stone-50'}`} />
                       <div>
-                        <p className="text-xs font-bold">{p.name}</p>
-                        <p className="text-[9px] text-stone-400 uppercase tracking-widest">N{p.price.toLocaleString()} • {p.category}</p>
+                        <div className="flex items-center space-x-2">
+                          <p className="text-[8px] font-bold gold-text uppercase tracking-widest">{p.brand}</p>
+                          {p.stock <= 0 && <span className="text-[7px] font-bold text-red-600 bg-red-100 px-1.5 py-0.5 rounded-full uppercase tracking-tighter flex items-center"><Ban size={8} className="mr-1"/> SOLD OUT</span>}
+                        </div>
+                        <p className={`text-xs font-bold ${p.stock <= 0 ? 'text-stone-400' : 'text-stone-900'}`}>{p.name}</p>
+                        <div className="flex flex-wrap gap-1 mt-1">
+                          {p.tags.slice(0, 3).map(tag => (
+                            <span key={tag} className="text-[7px] bg-stone-100 text-stone-500 px-1 rounded-sm uppercase">{tag}</span>
+                          ))}
+                        </div>
                       </div>
                     </div>
                     <div className="flex space-x-2">
@@ -524,162 +439,33 @@ const Admin: React.FC<AdminProps> = ({ products, orders, viewLogs, setProducts, 
           </div>
         )}
 
-        {activeTab === 'orders' && (
-          <div className="space-y-12">
-            <div className="flex justify-between items-center mb-4">
-              <div className="flex items-center space-x-4">
-                {viewingCustomerEmail && (
-                  <button 
-                    onClick={() => setViewingCustomerEmail(null)}
-                    className="p-2 text-stone-400 hover:text-stone-900 bg-white border border-stone-200 rounded-sm shadow-sm transition-all"
-                  >
-                    <ArrowLeft size={16} />
-                  </button>
-                )}
-                <div>
-                  <h3 className="text-[10px] font-bold tracking-[0.3em] uppercase text-stone-400">
-                    {viewingCustomerEmail ? 'Customer Order History' : 'Transaction History'}
-                  </h3>
-                  {viewingCustomerEmail && (
-                    <p className="text-xs font-bold text-stone-900 mt-1 flex items-center">
-                      <History size={12} className="mr-1.5 gold-text" /> 
-                      Showing {displayedOrders.length} records for {displayedOrders[0]?.customerName}
-                    </p>
-                  )}
-                </div>
-              </div>
-              <button 
-                onClick={exportOrdersToCSV}
-                className="flex items-center space-x-2 bg-stone-900 text-white px-5 py-2.5 text-[9px] font-bold uppercase tracking-widest hover:bg-[#C5A059] transition-all rounded-sm shadow-sm"
-              >
-                <Download size={14} />
-                <span>Export {viewingCustomerEmail ? 'Customer ' : ''}CSV Report</span>
-              </button>
-            </div>
-
-            {displayedOrders.length === 0 ? (
-              <div className="p-20 text-center bg-white border border-dashed border-stone-300">
-                <p className="text-stone-400 font-serif italic">No orders logged.</p>
-              </div>
-            ) : (
-              displayedOrders.map(order => (
-                <div key={order.id} className="bg-white border border-stone-200 shadow-sm overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-500">
-                  <div className="bg-stone-50 px-8 py-6 border-b border-stone-100 flex justify-between items-center">
-                    <div>
-                      <h4 className="font-bold text-lg mb-1">{order.id}</h4>
-                      <p className="text-[10px] text-stone-400 tracking-widest uppercase font-bold">{new Date(order.date).toLocaleString()}</p>
-                    </div>
-                    <div className="relative group flex items-center space-x-4">
-                      <select 
-                        value={order.status}
-                        onChange={(e) => updateOrderStatus(order.id, e.target.value as Order['status'])}
-                        className="bg-stone-900 text-white text-[9px] font-bold px-6 py-2.5 uppercase tracking-[0.2em] outline-none appearance-none cursor-pointer pr-10"
-                      >
-                        <option value="Pending">Pending</option>
-                        <option value="Shipped">Shipped</option>
-                        <option value="Delivered">Delivered</option>
-                      </select>
-                      <RefreshCcw size={10} className="absolute right-3 top-1/2 -translate-y-1/2 text-stone-400 pointer-events-none" />
-                    </div>
-                  </div>
-                  
-                  <div className="p-10 grid lg:grid-cols-3 gap-12">
-                    {/* Customer Dossier */}
-                    <div className="space-y-6">
-                       <h5 className="text-[10px] font-bold uppercase tracking-widest gold-text pb-2 border-b border-stone-100">Customer Dossier</h5>
-                       <div className="space-y-4">
-                          <div className="flex items-start space-x-3 group">
-                             <User size={14} className="text-stone-400 mt-0.5" />
-                             <button 
-                                onClick={() => setViewingCustomerEmail(order.customerEmail)}
-                                className={`text-sm font-bold text-left hover:text-[#C5A059] transition-colors ${viewingCustomerEmail ? 'pointer-events-none' : 'hover:underline decoration-[#C5A059] underline-offset-4'}`}
-                             >
-                                {order.customerName}
-                             </button>
-                          </div>
-                          <div className="flex items-start space-x-3">
-                             <Mail size={14} className="text-stone-400 mt-0.5" />
-                             <p className="text-xs text-stone-600 underline">{order.customerEmail}</p>
-                          </div>
-                          <div className="flex items-start space-x-3">
-                             <Phone size={14} className="text-stone-400 mt-0.5" />
-                             <p className="text-xs text-stone-600">{order.customerPhone}</p>
-                          </div>
-                          <div className="flex items-start space-x-3">
-                             <MapPin size={14} className="text-stone-400 mt-0.5" />
-                             <p className="text-xs text-stone-600 leading-relaxed">{order.customerAddress}</p>
-                          </div>
-                       </div>
-                    </div>
-
-                    {/* Order Contents & Fulfillment */}
-                    <div className="lg:col-span-2 space-y-8">
-                       <div className="flex justify-between items-center border-b border-stone-100 pb-2">
-                          <h5 className="text-[10px] font-bold uppercase tracking-widest gold-text">Fulfillment Progress</h5>
-                          <div className="flex items-center space-x-2">
-                             {order.status === 'Shipped' ? (
-                               <span className="flex items-center text-[10px] font-bold text-green-600 uppercase tracking-widest bg-green-50 px-3 py-1 rounded-full">
-                                  <CheckCircle2 size={12} className="mr-1" /> Sent Out
-                               </span>
-                             ) : (
-                               <button 
-                                 onClick={() => toggleSentOut(order.id, order.status)}
-                                 className="flex items-center text-[9px] font-bold bg-stone-100 text-stone-600 hover:bg-[#C5A059] hover:text-white transition-all px-4 py-1.5 uppercase tracking-widest border border-stone-200"
-                               >
-                                  <Truck size={12} className="mr-2" /> Mark as Sent Out
-                               </button>
-                             )}
-                          </div>
-                       </div>
-
-                       <div className="grid sm:grid-cols-2 gap-4">
-                          {order.items.map(item => (
-                            <div key={item.id} className="flex space-x-4 p-3 bg-stone-50 rounded-sm">
-                               <img src={item.image} className="w-10 h-14 object-cover" />
-                               <div>
-                                  <p className="text-xs font-bold">{item.name}</p>
-                                  <p className="text-[9px] text-stone-400 uppercase">Qty: {item.quantity} • N{item.price.toLocaleString()}</p>
-                               </div>
-                            </div>
-                          ))}
-                       </div>
-                       <div className="pt-6 border-t border-stone-100 flex justify-between items-center">
-                          <p className="text-[10px] font-bold uppercase tracking-widest">Total Transaction Value</p>
-                          <p className="text-xl font-bold">N{order.total.toLocaleString()}</p>
-                       </div>
-                    </div>
-                  </div>
-                </div>
-              ))
-            )}
-          </div>
-        )}
-
-        {/* Keeping existing tabs like Inventory... */}
         {activeTab === 'inventory' && (
-          <div className="bg-white border border-stone-200 overflow-hidden shadow-sm">
-            <table className="w-full text-left">
-              <thead>
-                <tr className="bg-stone-50 border-b border-stone-200">
-                  <th className="px-8 py-5 text-[9px] font-bold uppercase tracking-widest text-stone-400">Product</th>
-                  <th className="px-8 py-5 text-[9px] font-bold uppercase tracking-widest text-stone-400 text-right">Stock Level</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-stone-100">
-                {products.map(p => (
-                  <tr key={p.id} className="hover:bg-stone-50/50 transition-colors">
-                    <td className="px-8 py-6 flex items-center space-x-3">
-                      <span className={`w-2 h-2 rounded-full ${p.stock < 5 ? 'bg-red-500' : 'bg-green-500'}`} />
-                      <span className="text-xs font-medium">{p.name}</span>
-                    </td>
-                    <td className="px-8 py-6 text-right">
-                      <span className={`text-sm font-bold ${p.stock < 5 ? 'text-red-600' : 'text-stone-900'}`}>{p.stock} units</span>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+           <div className="bg-white border border-stone-200 overflow-hidden shadow-sm">
+             <table className="w-full text-left">
+               <thead>
+                 <tr className="bg-stone-50 border-b border-stone-200">
+                   <th className="px-8 py-5 text-[9px] font-bold uppercase tracking-widest text-stone-400">Brand & Product</th>
+                   <th className="px-8 py-5 text-[9px] font-bold uppercase tracking-widest text-stone-400 text-right">Stock Level</th>
+                 </tr>
+               </thead>
+               <tbody className="divide-y divide-stone-100">
+                 {products.map(p => (
+                   <tr key={p.id} className={`hover:bg-stone-50/50 transition-colors ${p.stock <= 0 ? 'bg-red-50/30' : ''}`}>
+                     <td className="px-8 py-6 flex items-center space-x-3">
+                       <span className={`w-2 h-2 rounded-full ${p.stock <= 0 ? 'bg-red-500 animate-pulse' : p.stock < 5 ? 'bg-amber-500' : 'bg-green-500'}`} />
+                       <div className="flex flex-col">
+                         <span className="text-[8px] font-bold text-stone-400 uppercase tracking-widest">{p.brand}</span>
+                         <span className={`text-xs font-medium ${p.stock <= 0 ? 'text-stone-400 italic' : 'text-stone-900'}`}>{p.name} {p.stock <= 0 ? '(Sold Out)' : ''}</span>
+                       </div>
+                     </td>
+                     <td className="px-8 py-6 text-right">
+                       <span className={`text-sm font-bold ${p.stock <= 0 ? 'text-red-600' : p.stock < 5 ? 'text-amber-600' : 'text-stone-900'}`}>{p.stock} units</span>
+                     </td>
+                   </tr>
+                 ))}
+               </tbody>
+             </table>
+           </div>
         )}
       </main>
     </div>

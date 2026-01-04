@@ -3,6 +3,7 @@ import React, { useState } from 'react';
 import { Sparkles, ArrowRight, ShieldCheck } from 'lucide-react';
 import { Product, StyleAdvice } from '../types';
 import ProductCard from '../components/ProductCard';
+import Logo from '../components/Logo';
 import { getStyleAdvice, generateMoodboard } from '../services/geminiService';
 
 interface HomeProps {
@@ -157,13 +158,15 @@ const Home: React.FC<HomeProps> = ({ products, onAddToCart, onLogView }) => {
 
       <footer className="bg-white border-t border-stone-200 py-24 px-4 text-center">
         <div className="max-w-4xl mx-auto">
-          <h2 className="text-2xl font-bold tracking-[0.4em] mb-8 uppercase">ZARHRAH<span className="gold-text font-light">LUXURY</span></h2>
-          <p className="text-stone-500 font-light mb-12 max-w-2xl mx-auto">
+          <div className="flex justify-center mb-10">
+            <Logo size={140} />
+          </div>
+          <p className="text-stone-500 font-light mb-12 max-w-2xl mx-auto leading-relaxed italic">
             High-end clothing brand and premium shopper affiliated with ZARA UK. Delivering original ZARA products directly from London to your door.
           </p>
           <div className="flex justify-center space-x-8 mb-12">
              <ShieldCheck className="w-8 h-8 text-stone-200" />
-             <div className="text-[10px] text-stone-400 font-bold tracking-widest uppercase py-2">Verified Authentic ZARA UK Affiliate</div>
+             <div className="text-[10px] text-stone-400 font-bold tracking-widest uppercase py-2 border-y border-stone-100 px-6">Verified Authentic ZARA UK Affiliate</div>
           </div>
           <p className="text-[9px] text-stone-400 tracking-[0.3em] uppercase">© 2024 ZARHRAH LUXURY ATELIER</p>
         </div>

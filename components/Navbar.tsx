@@ -2,6 +2,7 @@
 import React from 'react';
 import { ShoppingBag, Menu, X, Shield } from 'lucide-react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
+import Logo from './Logo';
 
 interface NavbarProps {
   cartCount: number;
@@ -30,8 +31,12 @@ const Navbar: React.FC<NavbarProps> = ({ cartCount }) => {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-20">
           <div className="flex-shrink-0 flex items-center">
-            <Link to="/" className="text-xl font-bold tracking-[0.2em] text-stone-900">
-              ZARHRAH<span className="gold-text font-light">LUXURY</span>
+            <Link to="/" className="flex items-center">
+              <Logo size={64} className="hover:scale-105 transition-transform" />
+              <div className="ml-2 flex flex-col justify-center leading-none">
+                <span className="text-sm font-bold tracking-[0.2em] text-stone-900">ZARHRAH</span>
+                <span className="text-[10px] gold-text font-bold tracking-[0.1em]">COLLECTIONS</span>
+              </div>
             </Link>
           </div>
           
