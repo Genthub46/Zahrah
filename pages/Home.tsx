@@ -1,11 +1,11 @@
 
-import React, { useState } from 'react';
-import { Sparkles, ArrowRight, ShieldCheck, Phone, Mail, MessageCircle, ChevronDown } from 'lucide-react';
-import { Product, StyleAdvice } from '../types';
+import React, { useState, useEffect } from 'react';
+import { ArrowRight, ShieldCheck, Phone, Mail, MessageCircle, ChevronDown, Star, Quote } from 'lucide-react';
+import { Product, Review } from '../types';
 import ProductCard from '../components/ProductCard';
 import Logo from '../components/Logo';
-import { getStyleAdvice, generateMoodboard } from '../services/geminiService';
-import { motion, AnimatePresence } from 'framer-motion';
+import { REVIEWS_STORAGE_KEY } from '../constants';
+import { motion } from 'framer-motion';
 
 interface HomeProps {
   products: Product[];
@@ -14,26 +14,14 @@ interface HomeProps {
 }
 
 const Home: React.FC<HomeProps> = ({ products, onAddToCart, onLogView }) => {
-  const [occasion, setOccasion] = useState('');
-  const [advice, setAdvice] = useState<StyleAdvice | null>(null);
-  const [moodboard, setMoodboard] = useState<string | null>(null);
-  const [loadingAdvice, setLoadingAdvice] = useState(false);
+  const [reviews, setReviews] = useState<Review[]>([]);
 
-  const handleGetAdvice = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!occasion.trim()) return;
-    setLoadingAdvice(true);
-    setAdvice(null);
-    setMoodboard(null);
-    
-    const adviceResult = await getStyleAdvice(occasion);
-    if (adviceResult) {
-      setAdvice(adviceResult);
-      const moodboardUrl = await generateMoodboard(adviceResult.advice);
-      setMoodboard(moodboardUrl);
+  useEffect(() => {
+    const saved = localStorage.getItem(REVIEWS_STORAGE_KEY);
+    if (saved) {
+      setReviews(JSON.parse(saved).slice(0, 3));
     }
-    setLoadingAdvice(false);
-  };
+  }, []);
 
   const brandProducts = products.filter(p => p.category === 'Apparel' || p.category === 'Footwear');
   const accessoryProducts = products.filter(p => p.category === 'Accessories' || p.category === 'Beauty' || p.category === 'Travel' || p.category === 'Watches' || p.category === 'Perfumes' || p.category === 'Bags');
@@ -65,128 +53,45 @@ const Home: React.FC<HomeProps> = ({ products, onAddToCart, onLogView }) => {
           initial={{ opacity: 0, y: 30 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 1.2, ease: "easeOut" }}
-          className="relative z-10 text-center px-4 max-w-5xl"
+          className="relative z-10 text-center px-4 max-w-5xl flex flex-col items-center"
         >
           <motion.span 
             initial={{ letterSpacing: "0.2em", opacity: 0 }}
             animate={{ letterSpacing: "0.4em", opacity: 1 }}
             transition={{ duration: 1, delay: 0.5 }}
-            className="gold-text font-bold text-[10px] uppercase block mb-8"
+            className="gold-text font-bold text-[10px] uppercase block mb-6"
           >
             Premium ZARA UK Shopper
           </motion.span>
-          <h1 className="text-6xl md:text-9xl text-white mb-10 font-bold tracking-tighter leading-none">
-            Original ZARA <br /><span className="italic font-light serif">London Curated</span>
+          <h1 className="text-6xl md:text-9xl text-white mb-8 font-bold tracking-tighter leading-none">
+            Original ZARA <br /><span className="italic font-light serif text-stone-200">London Boutique</span>
           </h1>
-          <p className="text-lg md:text-2xl text-stone-100/90 mb-14 font-light tracking-[0.1em] uppercase max-w-2xl mx-auto leading-relaxed">
-            Personalized luxury shopping experience delivering global excellence.
+          <p className="text-lg md:text-2xl text-stone-100/90 mb-10 font-light tracking-[0.1em] uppercase max-w-2xl mx-auto leading-relaxed">
+            Personalized luxury shopping delivering global excellence.
           </p>
-          <div className="flex flex-col md:flex-row items-center justify-center gap-6">
+          
+          <div className="flex flex-col items-center">
             <a
               href="#brands"
-              className="inline-flex items-center space-x-3 bg-white text-stone-900 px-12 py-5 text-[10px] font-bold tracking-[0.3em] hover:bg-[#C5A059] hover:text-white transition-all shadow-2xl group"
+              className="inline-flex items-center space-x-6 bg-white text-stone-900 px-16 py-6 text-[11px] font-bold tracking-[0.4em] hover:bg-stone-100 transition-all shadow-2xl group border border-white mb-6"
             >
-              <span>EXPLORE ATELIER</span>
-              <ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-1" />
+              <span>EXPLORE SHOWROOM</span>
+              <ArrowRight className="w-5 h-5 transition-transform group-hover:translate-x-2" />
             </a>
+
+            {/* Discover Indicator - Tightened Spacing */}
+            <div 
+              onClick={() => document.getElementById('brands')?.scrollIntoView({ behavior: 'smooth' })}
+              className="flex flex-col items-center gap-1 cursor-pointer group opacity-60 hover:opacity-100 transition-opacity"
+            >
+              <span className="text-[9px] font-bold tracking-[0.5em] text-white uppercase group-hover:gold-text transition-colors">Discover</span>
+              <ChevronDown size={18} className="text-white float group-hover:gold-text" />
+            </div>
           </div>
         </motion.div>
-
-        {/* Scroll Indicator */}
-        <div className="absolute bottom-10 left-1/2 -translate-x-1/2 text-white/50 flex flex-col items-center gap-2 float cursor-pointer">
-          <span className="text-[8px] font-bold tracking-[0.4em] uppercase">Discover</span>
-          <ChevronDown size={20} />
-        </div>
       </section>
 
-      {/* Style Assistant */}
-      <section className="bg-stone-50 py-40 px-4">
-        <div className="max-w-7xl mx-auto grid lg:grid-cols-2 gap-24 items-center">
-          <motion.div
-            initial={{ opacity: 0, x: -50 }}
-            whileInView={{ opacity: 1, x: 0 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.8 }}
-          >
-            <div className="inline-flex items-center justify-center p-4 bg-white border border-stone-100 rounded-full shadow-sm mb-8">
-              <Sparkles className="w-6 h-6 gold-text" />
-            </div>
-            <h2 className="text-5xl md:text-6xl font-bold mb-8 tracking-tight">Concierge Stylist</h2>
-            <p className="text-stone-600 mb-12 font-light text-xl leading-relaxed max-w-lg">
-              Describe your vision, and our AI-powered atelier will curate the perfect ensemble from the latest London collections.
-            </p>
-            <form onSubmit={handleGetAdvice} className="relative group">
-              <div className="absolute -inset-1 bg-gradient-to-r from-[#C5A059]/0 to-[#C5A059]/20 rounded-sm blur opacity-0 group-hover:opacity-100 transition duration-1000 group-hover:duration-200"></div>
-              <input
-                type="text"
-                value={occasion}
-                onChange={(e) => setOccasion(e.target.value)}
-                placeholder="e.g. A sunset wedding in Cap d'Antibes..."
-                className="relative w-full px-10 py-7 bg-white border border-stone-200 focus:outline-none focus:ring-1 focus:ring-[#C5A059] transition-all shadow-sm font-light text-lg pr-48"
-              />
-              <button
-                disabled={loadingAdvice}
-                className="absolute right-3 top-3 bottom-3 bg-stone-900 text-white px-8 py-2 text-[10px] font-bold tracking-widest hover:bg-[#C5A059] transition-all flex items-center gap-2"
-              >
-                {loadingAdvice ? (
-                  <span className="animate-pulse">STYLING...</span>
-                ) : (
-                  <><span>GET LOOK</span> <ArrowRight size={14} /></>
-                )}
-              </button>
-            </form>
-          </motion.div>
-
-          <div className="relative">
-            <AnimatePresence mode="wait">
-              {advice ? (
-                <motion.div 
-                  key="advice"
-                  initial={{ opacity: 0, scale: 0.95, y: 20 }}
-                  animate={{ opacity: 1, scale: 1, y: 0 }}
-                  exit={{ opacity: 0, scale: 1.05, y: -20 }}
-                  className="bg-white p-12 border border-stone-100 shadow-2xl relative z-10"
-                >
-                  <div className="flex justify-between items-start mb-8">
-                    <h3 className="gold-text font-bold tracking-[0.4em] text-[10px] uppercase">Stylist Recommendation</h3>
-                    <div className="flex gap-1">
-                      {advice.suggestedColors?.map(color => (
-                        <div key={color} className="w-4 h-4 rounded-full border border-stone-100 shadow-sm" style={{ backgroundColor: color.toLowerCase() }} title={color} />
-                      ))}
-                    </div>
-                  </div>
-                  <p className="text-stone-900 text-2xl font-light italic leading-relaxed mb-10 serif">"{advice.advice}"</p>
-                  {moodboard && (
-                    <motion.div 
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: 1 }}
-                      className="border-8 border-stone-50 overflow-hidden shadow-inner grayscale hover:grayscale-0 transition-all duration-700 cursor-crosshair"
-                    >
-                      <img src={moodboard} alt="Moodboard" className="w-full h-64 object-cover" />
-                    </motion.div>
-                  )}
-                </motion.div>
-              ) : (
-                <motion.div 
-                  key="placeholder"
-                  className="aspect-square border border-stone-200/50 rounded-sm flex flex-col items-center justify-center p-20 text-center"
-                >
-                  <div className="w-20 h-20 border border-stone-100 rounded-full flex items-center justify-center mb-6 opacity-30">
-                     <Logo size={40} className="grayscale" />
-                  </div>
-                  <p className="text-stone-300 font-serif italic text-2xl">Awaiting your vision.</p>
-                </motion.div>
-              )}
-            </AnimatePresence>
-            
-            {/* Decorative shapes */}
-            <div className="absolute -top-10 -right-10 w-40 h-40 bg-stone-100/50 rounded-full -z-10 blur-2xl" />
-            <div className="absolute -bottom-10 -left-10 w-60 h-60 bg-[#C5A059]/5 rounded-full -z-10 blur-3xl" />
-          </div>
-        </div>
-      </section>
-
-      {/* Brands Section */}
+      {/* Boutique Section */}
       <section id="brands" className="max-w-7xl mx-auto px-4 py-40 sm:px-6 lg:px-8">
         <motion.div 
           initial={{ opacity: 0, y: 30 }}
@@ -195,7 +100,7 @@ const Home: React.FC<HomeProps> = ({ products, onAddToCart, onLogView }) => {
           className="mb-24 text-center"
         >
           <span className="gold-text font-bold text-[10px] tracking-[0.5em] uppercase block mb-6">Seasonal Edit</span>
-          <h2 className="text-6xl md:text-7xl font-bold tracking-tighter">The Boutique</h2>
+          <h2 className="text-6xl md:text-7xl font-bold tracking-tighter uppercase">The Boutique</h2>
           <div className="w-20 h-px bg-stone-200 mx-auto mt-10"></div>
         </motion.div>
         
@@ -217,16 +122,8 @@ const Home: React.FC<HomeProps> = ({ products, onAddToCart, onLogView }) => {
         </motion.div>
       </section>
 
-      {/* Divider */}
-      <div className="max-w-4xl mx-auto py-10 opacity-10">
-        <div className="h-px bg-stone-900 w-full flex items-center justify-center">
-            <Logo size={30} />
-        </div>
-      </div>
-
       {/* Accessories Section */}
       <section id="accessories" className="bg-stone-900 text-white py-40 px-4 sm:px-6 lg:px-8 relative overflow-hidden">
-        {/* Background texture */}
         <div className="absolute inset-0 opacity-[0.03] pointer-events-none bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')]"></div>
         
         <div className="max-w-7xl mx-auto relative z-10">
@@ -237,8 +134,8 @@ const Home: React.FC<HomeProps> = ({ products, onAddToCart, onLogView }) => {
             className="mb-24"
           >
             <span className="gold-text font-bold text-[10px] tracking-[0.5em] uppercase block mb-6">Finishing Touches</span>
-            <h2 className="text-6xl md:text-7xl font-bold tracking-tighter">Accoutrements</h2>
-            <p className="text-stone-400 font-light mt-6 tracking-widest uppercase text-[10px]">Watches, Perfumes & Luxuries</p>
+            <h2 className="text-6xl md:text-7xl font-bold tracking-tighter uppercase">Boutique Accents</h2>
+            <p className="text-stone-400 font-light mt-6 tracking-widest uppercase text-[10px]">Watches, Perfumes & Curated Accessories</p>
           </motion.div>
           
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-y-24 gap-x-12">
@@ -254,8 +151,59 @@ const Home: React.FC<HomeProps> = ({ products, onAddToCart, onLogView }) => {
         </div>
       </section>
 
+      {/* Testimonials Section */}
+      {reviews.length > 0 && (
+        <section className="bg-stone-50 py-40 px-4">
+          <div className="max-w-5xl mx-auto text-center">
+            <span className="gold-text font-bold text-[10px] tracking-[0.5em] uppercase block mb-8">Social Proof</span>
+            <h2 className="text-4xl md:text-5xl font-bold mb-20 tracking-tight serif italic">Boutique Testimonials</h2>
+            <div className="grid md:grid-cols-3 gap-12">
+              {reviews.map((review) => (
+                <motion.div 
+                  key={review.id}
+                  initial={{ opacity: 0, y: 20 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true }}
+                  className="bg-white p-10 border border-stone-100 shadow-sm relative text-left"
+                >
+                  <Quote className="absolute top-6 right-6 w-8 h-8 text-stone-50" />
+                  <div className="flex mb-4">
+                    {[...Array(review.rating)].map((_, i) => (
+                      <Star key={i} size={12} fill="#C5A059" className="text-[#C5A059]" />
+                    ))}
+                  </div>
+                  <p className="text-stone-600 text-sm font-light italic leading-relaxed mb-6">"{review.comment}"</p>
+                  <div className="border-t border-stone-50 pt-4">
+                    <p className="text-[10px] font-bold tracking-widest uppercase text-stone-900">{review.customerName}</p>
+                    <p className="text-[8px] text-stone-400 uppercase tracking-widest mt-1">Verified Patron</p>
+                  </div>
+                </motion.div>
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
+
+      {/* Newsletter Section */}
+      <section className="bg-white py-40 border-t border-stone-100 px-4">
+        <div className="max-w-3xl mx-auto text-center">
+          <h2 className="text-3xl font-bold mb-6 tracking-tight uppercase tracking-[0.2em]">The Newsletter</h2>
+          <p className="text-stone-500 font-light mb-12 text-lg italic serif">Subscribe to receive exclusive access to the latest boutique ZARA drops and private collection previews.</p>
+          <form className="flex flex-col sm:flex-row gap-4" onSubmit={(e) => e.preventDefault()}>
+            <input 
+              type="email" 
+              placeholder="YOUR EMAIL ADDRESS" 
+              className="flex-grow px-8 py-5 bg-stone-50 border border-stone-100 focus:outline-none focus:ring-1 focus:ring-[#C5A059] text-[10px] font-bold tracking-widest uppercase"
+            />
+            <button className="bg-stone-900 text-white px-10 py-5 text-[10px] font-bold tracking-[0.3em] hover:bg-[#C5A059] transition-all uppercase whitespace-nowrap">
+              Join the Circle
+            </button>
+          </form>
+        </div>
+      </section>
+
       {/* Footer & Contact Section */}
-      <footer id="contact" className="bg-white pt-40 pb-20 px-4 relative">
+      <footer id="contact" className="bg-white pt-20 pb-20 px-4 relative">
         <div className="max-w-7xl mx-auto">
           <div className="grid lg:grid-cols-3 gap-24 mb-32">
             <div className="space-y-10">
@@ -274,7 +222,7 @@ const Home: React.FC<HomeProps> = ({ products, onAddToCart, onLogView }) => {
             </div>
 
             <div className="space-y-12">
-              <h3 className="text-[10px] font-bold tracking-[0.4em] uppercase text-stone-400">Atelier Lines</h3>
+              <h3 className="text-[10px] font-bold tracking-[0.4em] uppercase text-stone-400">Boutique Lines</h3>
               <div className="space-y-8">
                 <div className="group">
                   <p className="text-[8px] font-bold text-stone-300 uppercase tracking-widest mb-1 group-hover:gold-text transition-colors">United Kingdom</p>
@@ -303,7 +251,7 @@ const Home: React.FC<HomeProps> = ({ products, onAddToCart, onLogView }) => {
                   >
                     <span className="flex items-center gap-3">
                       <MessageCircle className="w-4 h-4" />
-                      WHATSAPP CONCIERGE
+                      WHATSAPP SUPPORT
                     </span>
                     <ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-1" />
                   </a>
@@ -313,7 +261,7 @@ const Home: React.FC<HomeProps> = ({ products, onAddToCart, onLogView }) => {
           </div>
 
           <div className="pt-16 border-t border-stone-100 flex flex-col md:flex-row justify-between items-center space-y-8 md:space-y-0 opacity-60">
-            <p className="text-[8px] text-stone-400 tracking-[0.5em] uppercase font-bold">© 2024 ZARHRAH LUXURY ATELIER • LONDON / LAGOS</p>
+            <p className="text-[8px] text-stone-400 tracking-[0.5em] uppercase font-bold">© 2024 ZARHRAH LUXURY BOUTIQUE • LONDON / LAGOS</p>
             <div className="flex space-x-12 text-[8px] text-stone-400 font-bold tracking-[0.3em] uppercase">
               <span className="hover:text-stone-900 cursor-pointer transition-colors">Privacy</span>
               <span className="hover:text-stone-900 cursor-pointer transition-colors">Terms</span>

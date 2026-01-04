@@ -4,7 +4,7 @@ export interface Product {
   name: string;
   brand: string;
   price: number;
-  image: string;
+  images: string[];
   description: string;
   category: 'Apparel' | 'Footwear' | 'Accessories' | 'Beauty' | 'Travel' | 'Watches' | 'Perfumes' | 'Bags';
   stock: number;
@@ -25,6 +25,21 @@ export interface Order {
   total: number;
   date: string;
   status: 'Pending' | 'Shipped' | 'Delivered';
+}
+
+export interface Review {
+  id: string;
+  rating: number;
+  comment: string;
+  customerName: string;
+  date: string;
+}
+
+export interface RestockRequest {
+  id: string;
+  productId: string;
+  customerEmail: string;
+  date: string;
 }
 
 export interface ViewLog {

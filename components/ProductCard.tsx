@@ -57,7 +57,7 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, onAddToCart, onLogVi
     >
       <div className="aspect-[3/4] overflow-hidden rounded-sm bg-stone-100 relative shadow-sm transition-shadow hover:shadow-2xl hover:shadow-stone-200">
         <img
-          src={product.image}
+          src={product.images[0]}
           alt={product.name}
           className={`h-full w-full object-cover object-center transition-all duration-1000 ${!isSoldOut ? 'group-hover:scale-110' : 'grayscale contrast-75'}`}
         />
