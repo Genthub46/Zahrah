@@ -1,6 +1,6 @@
 
-import React, { useState, useRef, useMemo } from 'react';
-import { LayoutDashboard, Package, ShoppingCart, Plus, LogOut, Trash2, ArrowUpDown, Upload, Edit3, X, RefreshCcw, Search, BarChart3, MapPin, Phone, Mail, User, Eye, TrendingUp, Download, ArrowLeft, History } from 'lucide-react';
+import React, { useState, useRef, useMemo, useEffect } from 'react';
+import { LayoutDashboard, Package, ShoppingCart, Plus, LogOut, Trash2, ArrowUpDown, Upload, Edit3, X, RefreshCcw, Search, BarChart3, MapPin, Phone, Mail, User, Eye, TrendingUp, Download, ArrowLeft, History, CheckCircle2, Truck, ShieldCheck } from 'lucide-react';
 import { Product, Order, ViewLog } from '../types';
 
 interface AdminProps {
@@ -11,9 +11,13 @@ interface AdminProps {
   setOrders: React.Dispatch<React.SetStateAction<Order[]>>;
 }
 
+const ADMIN_SESSION_KEY = 'ZARHRAH_ADMIN_SESSION';
+const SESSION_DURATION = 7 * 24 * 60 * 60 * 1000; // 7 days in milliseconds
+
 const Admin: React.FC<AdminProps> = ({ products, orders, viewLogs, setProducts, setOrders }) => {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [passcode, setPasscode] = useState('');
+  const [rememberMe, setRememberMe] = useState(false);
   const [activeTab, setActiveTab] = useState<'products' | 'inventory' | 'orders' | 'analytics'>('products');
   const [editingId, setEditingId] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
@@ -29,6 +33,23 @@ const Admin: React.FC<AdminProps> = ({ products, orders, viewLogs, setProducts, 
     category: 'Apparel',
     stock: 0
   });
+
+  // Check for existing session on mount
+  useEffect(() => {
+    const savedSession = localStorage.getItem(ADMIN_SESSION_KEY);
+    if (savedSession) {
+      try {
+        const { expiry } = JSON.parse(savedSession);
+        if (Date.now() < expiry) {
+          setIsLoggedIn(true);
+        } else {
+          localStorage.removeItem(ADMIN_SESSION_KEY);
+        }
+      } catch (e) {
+        localStorage.removeItem(ADMIN_SESSION_KEY);
+      }
+    }
+  }, []);
 
   // Calculate View Analytics
   const viewStats = useMemo(() => {
@@ -50,9 +71,21 @@ const Admin: React.FC<AdminProps> = ({ products, orders, viewLogs, setProducts, 
     e.preventDefault();
     if (passcode === 'LUXE2024') {
       setIsLoggedIn(true);
+      if (rememberMe) {
+        const session = {
+          authenticated: true,
+          expiry: Date.now() + SESSION_DURATION
+        };
+        localStorage.setItem(ADMIN_SESSION_KEY, JSON.stringify(session));
+      }
     } else {
       alert('Incorrect Passcode');
     }
+  };
+
+  const handleLogout = () => {
+    setIsLoggedIn(false);
+    localStorage.removeItem(ADMIN_SESSION_KEY);
   };
 
   const resizeImage = (file: File): Promise<string> => {
@@ -146,6 +179,11 @@ const Admin: React.FC<AdminProps> = ({ products, orders, viewLogs, setProducts, 
     setOrders(prev => prev.map(o => o.id === orderId ? { ...o, status: newStatus } : o));
   };
 
+  const toggleSentOut = (orderId: string, currentStatus: string) => {
+    const newStatus = currentStatus === 'Shipped' ? 'Pending' : 'Shipped';
+    updateOrderStatus(orderId, newStatus as Order['status']);
+  };
+
   const exportOrdersToCSV = () => {
     if (orders.length === 0) {
       alert("No orders available to export.");
@@ -201,16 +239,33 @@ const Admin: React.FC<AdminProps> = ({ products, orders, viewLogs, setProducts, 
             <p className="text-stone-400 text-[10px] font-bold tracking-widest uppercase">Zarhrah Luxury Admin</p>
           </div>
           <form onSubmit={handleLogin} className="space-y-6">
-            <input
-              type="password"
-              placeholder="PASSCODE"
-              value={passcode}
-              onChange={(e) => setPasscode(e.target.value)}
-              className="w-full px-6 py-4 bg-stone-50 border border-stone-200 focus:outline-none focus:ring-1 focus:ring-[#C5A059] text-center tracking-[0.5em] text-lg"
-              autoFocus
-            />
-            <button className="w-full gold-bg text-white py-4 font-bold tracking-[0.2em] text-[10px] hover:bg-stone-800 transition-all uppercase">
-              Enter Dashboard
+            <div className="space-y-4">
+              <input
+                type="password"
+                placeholder="PASSCODE"
+                value={passcode}
+                onChange={(e) => setPasscode(e.target.value)}
+                className="w-full px-6 py-4 bg-stone-50 border border-stone-200 focus:outline-none focus:ring-1 focus:ring-[#C5A059] text-center tracking-[0.5em] text-lg"
+                autoFocus
+              />
+              <div className="flex items-center justify-center space-x-3">
+                <label className="relative flex items-center cursor-pointer">
+                  <input 
+                    type="checkbox" 
+                    checked={rememberMe}
+                    onChange={(e) => setRememberMe(e.target.checked)}
+                    className="sr-only peer"
+                  />
+                  <div className="w-4 h-4 border border-stone-200 peer-checked:bg-[#C5A059] peer-checked:border-[#C5A059] transition-all flex items-center justify-center">
+                    {rememberMe && <CheckCircle2 size={10} className="text-white" />}
+                  </div>
+                  <span className="ml-2 text-[9px] font-bold text-stone-400 uppercase tracking-widest">Remember this device</span>
+                </label>
+              </div>
+            </div>
+            <button className="w-full gold-bg text-white py-4 font-bold tracking-[0.2em] text-[10px] hover:bg-stone-800 transition-all uppercase shadow-lg flex items-center justify-center space-x-2">
+              <ShieldCheck size={14} />
+              <span>Enter Dashboard</span>
             </button>
           </form>
         </div>
@@ -254,7 +309,7 @@ const Admin: React.FC<AdminProps> = ({ products, orders, viewLogs, setProducts, 
               <span>Analytics</span>
             </button>
             <button 
-              onClick={() => setIsLoggedIn(false)}
+              onClick={handleLogout}
               className="flex items-center space-x-4 text-[10px] font-bold tracking-widest uppercase text-stone-400 hover:text-red-600 transition-colors pt-12 border-t border-stone-100 w-full"
             >
               <LogOut size={16} />
@@ -557,9 +612,26 @@ const Admin: React.FC<AdminProps> = ({ products, orders, viewLogs, setProducts, 
                        </div>
                     </div>
 
-                    {/* Order Contents */}
-                    <div className="lg:col-span-2 space-y-6">
-                       <h5 className="text-[10px] font-bold uppercase tracking-widest gold-text pb-2 border-b border-stone-100">Shipment Contents</h5>
+                    {/* Order Contents & Fulfillment */}
+                    <div className="lg:col-span-2 space-y-8">
+                       <div className="flex justify-between items-center border-b border-stone-100 pb-2">
+                          <h5 className="text-[10px] font-bold uppercase tracking-widest gold-text">Fulfillment Progress</h5>
+                          <div className="flex items-center space-x-2">
+                             {order.status === 'Shipped' ? (
+                               <span className="flex items-center text-[10px] font-bold text-green-600 uppercase tracking-widest bg-green-50 px-3 py-1 rounded-full">
+                                  <CheckCircle2 size={12} className="mr-1" /> Sent Out
+                               </span>
+                             ) : (
+                               <button 
+                                 onClick={() => toggleSentOut(order.id, order.status)}
+                                 className="flex items-center text-[9px] font-bold bg-stone-100 text-stone-600 hover:bg-[#C5A059] hover:text-white transition-all px-4 py-1.5 uppercase tracking-widest border border-stone-200"
+                               >
+                                  <Truck size={12} className="mr-2" /> Mark as Sent Out
+                               </button>
+                             )}
+                          </div>
+                       </div>
+
                        <div className="grid sm:grid-cols-2 gap-4">
                           {order.items.map(item => (
                             <div key={item.id} className="flex space-x-4 p-3 bg-stone-50 rounded-sm">
