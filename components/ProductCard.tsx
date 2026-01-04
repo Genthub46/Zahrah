@@ -1,16 +1,36 @@
 
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 import { Product } from '../types';
 import { Plus } from 'lucide-react';
 
 interface ProductCardProps {
   product: Product;
   onAddToCart: (product: Product) => void;
+  onLogView?: (id: string) => void;
 }
 
-const ProductCard: React.FC<ProductCardProps> = ({ product, onAddToCart }) => {
+const ProductCard: React.FC<ProductCardProps> = ({ product, onAddToCart, onLogView }) => {
+  const viewedRef = useRef(false);
+
+  // Intersection observer to log view when product is actually seen
+  useEffect(() => {
+    if (!onLogView) return;
+    
+    const observer = new IntersectionObserver((entries) => {
+      if (entries[0].isIntersecting && !viewedRef.current) {
+        onLogView(product.id);
+        viewedRef.current = true;
+      }
+    }, { threshold: 0.5 });
+
+    const el = document.getElementById(`product-${product.id}`);
+    if (el) observer.observe(el);
+
+    return () => observer.disconnect();
+  }, [product.id, onLogView]);
+
   return (
-    <div className="group relative">
+    <div className="group relative" id={`product-${product.id}`}>
       <div className="aspect-[3/4] overflow-hidden rounded-sm bg-stone-100 relative">
         <img
           src={product.image}

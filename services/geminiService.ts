@@ -1,11 +1,11 @@
 
 import { GoogleGenAI, Type, Modality } from "@google/genai";
 
-const apiKey = process.env.API_KEY;
+// Fix: Removed local apiKey resolution to strictly use process.env.API_KEY as per guidelines.
 
 export const getStyleAdvice = async (occasion: string) => {
-  if (!apiKey) return null;
-  const ai = new GoogleGenAI({ apiKey });
+  // Fix: Initializing GoogleGenAI directly with process.env.API_KEY.
+  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   
   try {
     const response = await ai.models.generateContent({
@@ -27,7 +27,8 @@ export const getStyleAdvice = async (occasion: string) => {
         }
       }
     });
-    return JSON.parse(response.text);
+    // response.text is a property, not a method.
+    return JSON.parse(response.text || '{}');
   } catch (error) {
     console.error("Style advice error:", error);
     return null;
@@ -35,8 +36,8 @@ export const getStyleAdvice = async (occasion: string) => {
 };
 
 export const generateMoodboard = async (description: string) => {
-  if (!apiKey) return null;
-  const ai = new GoogleGenAI({ apiKey });
+  // Fix: Initializing GoogleGenAI directly with process.env.API_KEY.
+  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   
   try {
     const response = await ai.models.generateContent({
@@ -49,7 +50,8 @@ export const generateMoodboard = async (description: string) => {
       }
     });
 
-    for (const part of response.candidates[0].content.parts) {
+    // Iterate through parts to find the image part as recommended.
+    for (const part of response.candidates?.[0]?.content?.parts || []) {
       if (part.inlineData) {
         return `data:image/png;base64,${part.inlineData.data}`;
       }

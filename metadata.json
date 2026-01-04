@@ -1,7 +1,5 @@
 {
-  "name": "RHRAH LUXURY",
-  "description": "An elegant and modern e-commerce platform for luxury abayas and premium fabrics, featuring a seamless shopping bag experience and AI-driven style assistance.",
-  "requestFramePermissions": [
-    "microphone"
-  ]
+  "name": "Zarhrah Luxury",
+  "description": "High-end clothing brand & premium shopper affiliated with ZARA UK. Shop original ZARA products.",
+  "requestFramePermissions": []
 }
