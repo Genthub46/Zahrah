@@ -56,6 +56,13 @@ const Navbar: React.FC<NavbarProps> = ({ cartCount }) => {
             >
               Accessories
             </a>
+            <a 
+              href="#contact" 
+              onClick={(e) => handleNavClick(e, 'contact')}
+              className="text-[10px] font-bold tracking-[0.3em] hover:text-[#C5A059] transition-colors uppercase"
+            >
+              Contact
+            </a>
             <Link to="/admin" className="text-[10px] font-bold tracking-[0.3em] text-stone-300 hover:text-[#C5A059] transition-colors uppercase flex items-center">
               <Shield size={12} className="mr-1" /> Admin
             </Link>
@@ -90,6 +97,7 @@ const Navbar: React.FC<NavbarProps> = ({ cartCount }) => {
           <Link to="/" onClick={() => setIsOpen(false)} className="block text-xs font-bold tracking-[0.3em] uppercase">HOME</Link>
           <a href="#brands" onClick={(e) => handleNavClick(e, 'brands')} className="block text-xs font-bold tracking-[0.3em] uppercase">BRANDS</a>
           <a href="#accessories" onClick={(e) => handleNavClick(e, 'accessories')} className="block text-xs font-bold tracking-[0.3em] uppercase">ACCESSORIES</a>
+          <a href="#contact" onClick={(e) => handleNavClick(e, 'contact')} className="block text-xs font-bold tracking-[0.3em] uppercase">CONTACT</a>
           <Link to="/admin" onClick={() => setIsOpen(false)} className="block text-xs font-bold tracking-[0.3em] uppercase text-stone-400">ADMIN</Link>
           <Link to="/checkout" onClick={() => setIsOpen(false)} className="block text-xs font-bold tracking-[0.3em] uppercase">MY BAG</Link>
         </div>

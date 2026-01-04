@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { Sparkles, ArrowRight, ShieldCheck } from 'lucide-react';
+import { Sparkles, ArrowRight, ShieldCheck, Phone, Mail, MessageCircle } from 'lucide-react';
 import { Product, StyleAdvice } from '../types';
 import ProductCard from '../components/ProductCard';
 import Logo from '../components/Logo';
@@ -35,7 +35,7 @@ const Home: React.FC<HomeProps> = ({ products, onAddToCart, onLogView }) => {
   };
 
   const brandProducts = products.filter(p => p.category === 'Apparel' || p.category === 'Footwear');
-  const accessoryProducts = products.filter(p => p.category === 'Accessories' || p.category === 'Beauty' || p.category === 'Travel');
+  const accessoryProducts = products.filter(p => p.category === 'Accessories' || p.category === 'Beauty' || p.category === 'Travel' || p.category === 'Watches' || p.category === 'Perfumes' || p.category === 'Bags');
 
   return (
     <div className="pt-20">
@@ -156,19 +156,79 @@ const Home: React.FC<HomeProps> = ({ products, onAddToCart, onLogView }) => {
         </div>
       </section>
 
-      <footer className="bg-white border-t border-stone-200 py-24 px-4 text-center">
-        <div className="max-w-4xl mx-auto">
-          <div className="flex justify-center mb-10">
-            <Logo size={140} />
+      {/* Footer & Contact Section */}
+      <footer id="contact" className="bg-white border-t border-stone-200 pt-32 pb-16 px-4">
+        <div className="max-w-7xl mx-auto">
+          <div className="grid lg:grid-cols-3 gap-16 mb-24">
+            {/* Column 1: Brand */}
+            <div className="space-y-8">
+              <Logo size={120} />
+              <p className="text-stone-500 font-light leading-relaxed italic pr-8">
+                High-end clothing brand and premium shopper affiliated with ZARA UK. Delivering original ZARA products directly from London to your door.
+              </p>
+              <div className="flex items-center space-x-3 pt-4">
+                <ShieldCheck className="w-5 h-5 gold-text" />
+                <span className="text-[10px] text-stone-400 font-bold tracking-widest uppercase py-2 border-y border-stone-100 px-4">
+                  Verified ZARA UK Affiliate
+                </span>
+              </div>
+            </div>
+
+            {/* Column 2: Quick Links & Contact Details */}
+            <div className="space-y-10">
+              <h3 className="text-sm font-bold tracking-[0.3em] uppercase border-b border-stone-100 pb-4">Our Atelier</h3>
+              <div className="space-y-6">
+                <div className="flex items-start space-x-4">
+                  <Phone className="w-5 h-5 text-stone-400 mt-0.5" />
+                  <div className="space-y-2">
+                    <p className="text-[10px] font-bold text-stone-400 uppercase tracking-widest">United Kingdom</p>
+                    <a href="tel:+447574442681" className="text-lg font-medium hover:gold-text transition-colors">+44 (757) 444 2681</a>
+                  </div>
+                </div>
+                <div className="flex items-start space-x-4">
+                  <Phone className="w-5 h-5 text-stone-400 mt-0.5" />
+                  <div className="space-y-2">
+                    <p className="text-[10px] font-bold text-stone-400 uppercase tracking-widest">Nigeria</p>
+                    <a href="tel:+2348186626350" className="text-lg font-medium hover:gold-text transition-colors">+234 (818) 662 6350</a>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Column 3: Communication */}
+            <div className="space-y-10">
+              <h3 className="text-sm font-bold tracking-[0.3em] uppercase border-b border-stone-100 pb-4">Connect</h3>
+              <div className="space-y-8">
+                <div className="flex items-start space-x-4">
+                  <Mail className="w-5 h-5 text-stone-400 mt-0.5" />
+                  <div className="space-y-2">
+                    <p className="text-[10px] font-bold text-stone-400 uppercase tracking-widest">Email Enquiries</p>
+                    <a href="mailto:zarhrahluxurycollections1@gmail.com" className="text-lg font-medium hover:gold-text transition-colors break-all uppercase text-sm tracking-tighter">Zarhrahluxurycollections1</a>
+                  </div>
+                </div>
+                <div className="pt-4">
+                  <a 
+                    href="https://wa.me/2348186626350" 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center space-x-3 bg-stone-900 text-white px-8 py-4 text-[10px] font-bold tracking-[0.3em] hover:bg-[#C5A059] transition-all w-full justify-center group"
+                  >
+                    <MessageCircle className="w-4 h-4 group-hover:scale-110 transition-transform" />
+                    <span>INSTANT WHATSAPP CONCIERGE</span>
+                  </a>
+                </div>
+              </div>
+            </div>
           </div>
-          <p className="text-stone-500 font-light mb-12 max-w-2xl mx-auto leading-relaxed italic">
-            High-end clothing brand and premium shopper affiliated with ZARA UK. Delivering original ZARA products directly from London to your door.
-          </p>
-          <div className="flex justify-center space-x-8 mb-12">
-             <ShieldCheck className="w-8 h-8 text-stone-200" />
-             <div className="text-[10px] text-stone-400 font-bold tracking-widest uppercase py-2 border-y border-stone-100 px-6">Verified Authentic ZARA UK Affiliate</div>
+
+          <div className="pt-12 border-t border-stone-100 flex flex-col md:flex-row justify-between items-center space-y-6 md:space-y-0">
+            <p className="text-[9px] text-stone-400 tracking-[0.3em] uppercase">© 2024 ZARHRAH LUXURY ATELIER</p>
+            <div className="flex space-x-8 text-[9px] text-stone-400 font-bold tracking-widest uppercase">
+              <span className="hover:text-stone-900 cursor-pointer transition-colors">Privacy Policy</span>
+              <span className="hover:text-stone-900 cursor-pointer transition-colors">Terms of Service</span>
+              <span className="hover:text-stone-900 cursor-pointer transition-colors">Shipping & Returns</span>
+            </div>
           </div>
-          <p className="text-[9px] text-stone-400 tracking-[0.3em] uppercase">© 2024 ZARHRAH LUXURY ATELIER</p>
         </div>
       </footer>
     </div>
