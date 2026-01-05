@@ -9,10 +9,18 @@ export interface Product {
   category: 'Apparel' | 'Footwear' | 'Accessories' | 'Beauty' | 'Travel' | 'Watches' | 'Perfumes' | 'Bags';
   stock: number;
   tags: string[];
+  // New Luxury Fields
+  colors?: { name: string; hex: string }[];
+  sizes?: string[];
+  features?: string[];
+  composition?: string[];
+  specifications?: string[];
 }
 
 export interface CartItem extends Product {
   quantity: number;
+  selectedColor?: string;
+  selectedSize?: string;
 }
 
 export interface Order {

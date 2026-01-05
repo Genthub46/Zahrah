@@ -1,13 +1,22 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { HashRouter as Router, Routes, Route } from 'react-router-dom';
 import { Product, CartItem, Order, ViewLog, RestockRequest } from './types';
-import { APP_STORAGE_KEY, PRODUCTS_STORAGE_KEY, ORDERS_STORAGE_KEY, ANALYTICS_STORAGE_KEY, RESTOCK_REQUESTS_STORAGE_KEY, INITIAL_PRODUCTS } from './constants';
+import { 
+  APP_STORAGE_KEY, 
+  PRODUCTS_STORAGE_KEY, 
+  ORDERS_STORAGE_KEY, 
+  ANALYTICS_STORAGE_KEY, 
+  RESTOCK_REQUESTS_STORAGE_KEY, 
+  WISHLIST_STORAGE_KEY,
+  INITIAL_PRODUCTS 
+} from './constants';
 import Navbar from './components/Navbar';
 import Home from './pages/Home';
 import Checkout from './pages/Checkout';
 import Admin from './pages/Admin';
 import ProductDetail from './pages/ProductDetail';
+import Wishlist from './pages/Wishlist';
 import WhatsAppBot from './components/WhatsAppBot';
 
 const App: React.FC = () => {
@@ -36,6 +45,11 @@ const App: React.FC = () => {
     return saved ? JSON.parse(saved) : [];
   });
 
+  const [wishlist, setWishlist] = useState<Product[]>(() => {
+    const saved = localStorage.getItem(WISHLIST_STORAGE_KEY);
+    return saved ? JSON.parse(saved) : [];
+  });
+
   useEffect(() => {
     localStorage.setItem(APP_STORAGE_KEY, JSON.stringify(cart));
   }, [cart]);
@@ -56,31 +70,52 @@ const App: React.FC = () => {
     localStorage.setItem(ANALYTICS_STORAGE_KEY, JSON.stringify(viewLogs));
   }, [viewLogs]);
 
-  const addToCart = (product: Product) => {
+  useEffect(() => {
+    localStorage.setItem(WISHLIST_STORAGE_KEY, JSON.stringify(wishlist));
+  }, [wishlist]);
+
+  const addToCart = useCallback((product: Product, quantity: number = 1, color?: string, size?: string) => {
     setCart((prev) => {
-      const existing = prev.find((item) => item.id === product.id);
-      if (existing) {
-        return prev.map((item) =>
-          item.id === product.id ? { ...item, quantity: item.quantity + 1 } : item
-        );
+      const existingIndex = prev.findIndex((item) => 
+        item.id === product.id && 
+        item.selectedColor === color && 
+        item.selectedSize === size
+      );
+      
+      if (existingIndex > -1) {
+        const newCart = [...prev];
+        newCart[existingIndex] = { 
+          ...newCart[existingIndex], 
+          quantity: newCart[existingIndex].quantity + quantity 
+        };
+        return newCart;
       }
-      return [...prev, { ...product, quantity: 1 }];
+      
+      return [...prev, { ...product, quantity, selectedColor: color, selectedSize: size }];
     });
-  };
+  }, []);
 
-  const logView = (productId: string) => {
+  const toggleWishlist = useCallback((product: Product) => {
+    setWishlist((prev) => {
+      const isExist = prev.some(p => p.id === product.id);
+      if (isExist) return prev.filter(p => p.id !== product.id);
+      return [...prev, product];
+    });
+  }, []);
+
+  const logView = useCallback((productId: string) => {
     setViewLogs(prev => [...prev, { productId, timestamp: Date.now() }]);
-  };
+  }, []);
 
-  const removeFromCart = (id: string) => {
+  const removeFromCart = useCallback((id: string) => {
     setCart((prev) => prev.filter((item) => item.id !== id));
-  };
+  }, []);
 
-  const clearCart = () => {
+  const clearCart = useCallback(() => {
     setCart([]);
-  };
+  }, []);
 
-  const handleNewOrder = (order: Order) => {
+  const handleNewOrder = useCallback((order: Order) => {
     setOrders(prev => [order, ...prev]);
     setProducts(prev => prev.map(p => {
       const orderedItem = order.items.find(oi => oi.id === p.id);
@@ -89,22 +124,23 @@ const App: React.FC = () => {
       }
       return p;
     }));
-  };
+  }, []);
 
-  const handleAddRestockRequest = (request: RestockRequest) => {
+  const handleAddRestockRequest = useCallback((request: RestockRequest) => {
     setRestockRequests(prev => [request, ...prev]);
-  };
+  }, []);
 
   const cartCount = cart.reduce((sum, item) => sum + item.quantity, 0);
 
   return (
     <Router>
       <div className="min-h-screen bg-stone-50 flex flex-col selection:bg-[#C5A059] selection:text-white">
-        <Navbar cartCount={cartCount} />
+        <Navbar cartCount={cartCount} wishlistCount={wishlist.length} />
         
-        <main className="flex-grow">
+        <main className="flex-grow w-full">
           <Routes>
-            <Route path="/" element={<Home products={products} onAddToCart={addToCart} onLogView={logView} />} />
+            <Route path="/" element={<Home products={products} onAddToCart={addToCart} onLogView={logView} onToggleWishlist={toggleWishlist} wishlist={wishlist} />} />
+            <Route path="/wishlist" element={<Wishlist wishlist={wishlist} onToggleWishlist={toggleWishlist} onAddToCart={addToCart} />} />
             <Route 
               path="/product/:id" 
               element={
@@ -113,6 +149,8 @@ const App: React.FC = () => {
                   onAddToCart={addToCart} 
                   onLogView={logView} 
                   onAddRestockRequest={handleAddRestockRequest}
+                  onToggleWishlist={toggleWishlist}
+                  wishlist={wishlist}
                 />
               } 
             />
