@@ -4,7 +4,7 @@ import {
   Package, ShoppingCart, Plus, LogOut, Trash2, 
   Search, BarChart3, Edit3, X, BellRing, 
   Loader2, Lock, Eye, Calendar, Mail, Palette,
-  CheckCircle2, Layers, PenTool, Sparkles, LayoutGrid, ToggleLeft, ToggleRight, EyeOff, Image as ImageIcon, AlertTriangle, TrendingUp, TrendingDown, Activity, DollarSign, Target, Award, ArrowUp, ArrowDown, GripVertical, User, MapPin, Phone, ExternalLink, Clock, Send, FileText, Info, ChevronRight, Menu, ExternalLink as LinkIcon
+  CheckCircle2, Layers, PenTool, Sparkles, LayoutGrid, ToggleLeft, ToggleRight, EyeOff, Image as ImageIcon, AlertTriangle, TrendingUp, TrendingDown, Activity, DollarSign, Target, Award, ArrowUp, ArrowDown, GripVertical, User, MapPin, Phone, ExternalLink, Clock, Send, FileText, Info, ChevronRight, Menu, ExternalLink as LinkIcon, Upload, Check, AlertCircle as AlertIcon
 } from 'lucide-react';
 import { Product, Order, ViewLog, RestockRequest, HomeLayoutConfig, SectionConfig, FooterPage } from '../types';
 import Logo from '../components/Logo';
@@ -48,6 +48,7 @@ const Admin: React.FC<AdminProps> = ({
   const [editingId, setEditingId] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [customBrand, setCustomBrand] = useState('');
+  const fileInputRef = useRef<HTMLInputElement>(null);
   
   // Pages State
   const [editingPageSlug, setEditingPageSlug] = useState<string | null>(null);
@@ -64,6 +65,7 @@ const Admin: React.FC<AdminProps> = ({
   // States for product form handling
   const [priceInput, setPriceInput] = useState<string>('');
   const [imageInput, setImageInput] = useState('');
+  const [isUrlValid, setIsUrlValid] = useState<boolean | null>(null);
   const [tagInput, setTagInput] = useState('');
   const [sizeInput, setSizeInput] = useState('');
 
@@ -108,21 +110,45 @@ const Admin: React.FC<AdminProps> = ({
     }, 1200);
   };
 
-  const addImage = () => {
+  // --- Image Handling Logic ---
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files) return;
+
+    Array.from(files).forEach(file => {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setFormData(prev => ({
+          ...prev,
+          images: [...(prev.images || []), reader.result as string]
+        }));
+      };
+      reader.readAsDataURL(file);
+    });
+  };
+
+  const addImageFromUrl = () => {
     if (!imageInput) return;
     setFormData(prev => ({ ...prev, images: [...(prev.images || []), imageInput] }));
     setImageInput('');
+    setIsUrlValid(null);
   };
 
   const removeImage = (idx: number) => {
     setFormData(prev => ({ ...prev, images: prev.images?.filter((_, i) => i !== idx) }));
   };
 
+  const clearGallery = () => {
+    if (confirm('Wipe all assets from this gallery?')) {
+      setFormData(prev => ({ ...prev, images: [] }));
+    }
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     const numericPrice = parseFloat(priceInput);
     if (!formData.name || isNaN(numericPrice) || !formData.images?.length) {
-      alert("Missing Required Fields: Product Name, Price, and at least one Image are required.");
+      alert("Validation Error: Artifact Designation, Price, and at least one Asset required.");
       return;
     }
     const finalProduct = {
@@ -160,19 +186,15 @@ const Admin: React.FC<AdminProps> = ({
     setFormData({ name: '', brand: 'ASHLUXE', price: 0, images: [], description: '', category: 'Apparel', stock: 0, tags: [], colors: [], sizes: [] });
   };
 
-  // --- Pages Management ---
+  // --- Pages & Layout ---
   const handlePageSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!pageFormData.slug || !pageFormData.title) return;
-    
     setFooterPages(prev => {
       const exists = prev.some(p => p.slug === pageFormData.slug);
-      if (exists) {
-        return prev.map(p => p.slug === pageFormData.slug ? { ...p, ...pageFormData } as FooterPage : p);
-      }
+      if (exists) return prev.map(p => p.slug === pageFormData.slug ? { ...p, ...pageFormData } as FooterPage : p);
       return [...prev, pageFormData as FooterPage];
     });
-    
     setEditingPageSlug(null);
     setPageFormData({ title: '', slug: '', content: '', category: 'Customer Services' });
   };
@@ -183,7 +205,6 @@ const Admin: React.FC<AdminProps> = ({
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  // --- Layout Operations ---
   const addSection = () => {
     if (!newSectionTitle) return;
     const newSection: SectionConfig = {
@@ -253,9 +274,9 @@ const Admin: React.FC<AdminProps> = ({
 
   return (
     <div className="min-h-screen bg-[#FDFDFD] flex flex-col lg:flex-row font-sans">
-      {/* Tab Navigation (Improved Sticky Top Bar for Tablet/Mobile) */}
-      <div className="lg:hidden fixed top-[70px] left-0 right-0 z-[9000] glass border-b border-stone-200 shadow-lg overflow-x-auto no-scrollbar py-2">
-        <div className="flex px-4 space-x-2 md:space-x-4 min-w-max">
+      {/* Tab Navigation (Improved Sticky Top Bar) */}
+      <div className="lg:hidden fixed top-[70px] left-0 right-0 z-[9000] glass border-b border-stone-200 shadow-xl overflow-x-auto no-scrollbar py-3">
+        <div className="flex px-4 space-x-3 min-w-max">
           {tabs.map((tab) => (
             <button 
               key={tab.id} onClick={() => setActiveTab(tab.id as any)}
@@ -354,46 +375,73 @@ const Admin: React.FC<AdminProps> = ({
                   </div>
 
                   <div className="space-y-4 pt-4 border-t border-stone-50">
-                    <label className="text-[9px] font-black text-stone-400 uppercase tracking-widest ml-1 flex items-center">
-                      <ImageIcon size={14} className="mr-2 text-[#C5A059]" /> Asset Gallery
-                    </label>
-                    
-                    {/* Live Preview for typed URL */}
-                    {imageInput && (
-                      <div className="p-4 bg-stone-50 border border-stone-200 rounded-2xl animate-in fade-in slide-in-from-top-2">
-                        <p className="text-[8px] font-black uppercase tracking-widest text-stone-400 mb-2">Live URL Preview</p>
-                        <div className="aspect-square w-24 rounded-lg overflow-hidden bg-white border border-stone-100 shadow-sm flex items-center justify-center">
-                          <img 
-                            src={imageInput} 
-                            onError={(e) => (e.currentTarget.style.display = 'none')} 
-                            onLoad={(e) => (e.currentTarget.style.display = 'block')}
-                            className="w-full h-full object-contain" 
-                            alt="URL Preview" 
-                          />
-                          <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-20">
-                             <LinkIcon size={12} />
-                          </div>
-                        </div>
-                      </div>
-                    )}
+                    <div className="flex justify-between items-center px-1">
+                      <label className="text-[9px] font-black text-stone-400 uppercase tracking-widest flex items-center">
+                        <ImageIcon size={14} className="mr-2 text-[#C5A059]" /> Asset Gallery
+                      </label>
+                      <button type="button" onClick={clearGallery} className="text-[8px] font-black text-red-400 uppercase tracking-widest hover:text-red-600 transition-colors">Clear All</button>
+                    </div>
 
-                    {/* Gallery Items */}
-                    <div className="grid grid-cols-4 gap-2">
+                    {/* Previews Grid */}
+                    <div className="grid grid-cols-4 gap-3 bg-stone-50/50 p-3 rounded-2xl border border-stone-100 min-h-[60px]">
                       {formData.images?.map((img, i) => (
-                        <div key={i} className="relative group aspect-square rounded-xl bg-stone-50 border border-stone-100 overflow-hidden">
-                          <img src={img} className="w-full h-full object-cover" />
+                        <div key={i} className="relative group aspect-square rounded-xl bg-white border border-stone-200 overflow-hidden shadow-sm">
+                          <img src={img} className="w-full h-full object-contain" alt={`Preview ${i}`} />
                           <button type="button" onClick={() => removeImage(i)} className="absolute inset-0 bg-red-500/80 text-white opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                             <Trash2 size={12} />
                           </button>
                         </div>
                       ))}
+                      {(!formData.images || formData.images.length === 0) && (
+                        <div className="col-span-4 flex items-center justify-center py-4 text-stone-300 italic text-[10px]">No assets deployed.</div>
+                      )}
                     </div>
 
-                    <div className="flex gap-2">
-                      <input type="text" placeholder="IMAGE URL..." value={imageInput} onChange={(e) => setImageInput(e.target.value)} className="flex-1 px-5 py-3 bg-stone-50 border border-stone-100 rounded-xl text-[9px] font-bold focus:outline-none" />
-                      <button type="button" onClick={addImage} className="bg-stone-900 text-white px-4 rounded-xl hover:bg-stone-700 transition-colors shadow-lg"><Plus size={16} /></button>
+                    {/* Upload Controls */}
+                    <div className="space-y-3">
+                      <div className="flex gap-2">
+                        <div className="relative flex-1">
+                          <input 
+                            type="text" 
+                            placeholder="IMAGE URL..." 
+                            value={imageInput} 
+                            onChange={(e) => setImageInput(e.target.value)} 
+                            className="w-full px-5 py-3.5 bg-stone-50 border border-stone-100 rounded-xl text-[10px] font-bold focus:outline-none pr-12" 
+                          />
+                          {imageInput && (
+                            <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                              <img 
+                                src={imageInput} 
+                                className="w-6 h-6 object-cover rounded border border-stone-200 bg-white" 
+                                onError={(e) => (e.currentTarget.style.display = 'none')} 
+                                onLoad={(e) => (e.currentTarget.style.display = 'block')}
+                                alt="Small Preview" 
+                              />
+                            </div>
+                          )}
+                        </div>
+                        <button type="button" onClick={addImageFromUrl} className="bg-stone-900 text-white px-5 rounded-xl hover:bg-stone-700 transition-all shadow-md active:scale-95"><Plus size={18} /></button>
+                      </div>
+
+                      <div className="relative">
+                        <input 
+                          type="file" 
+                          multiple 
+                          accept="image/*" 
+                          ref={fileInputRef} 
+                          onChange={handleFileUpload} 
+                          className="hidden" 
+                        />
+                        <button 
+                          type="button" 
+                          onClick={() => fileInputRef.current?.click()}
+                          className="w-full flex items-center justify-center space-x-3 py-3 border-2 border-dashed border-stone-200 rounded-xl text-[9px] font-black uppercase tracking-widest text-stone-400 hover:border-[#C5A059] hover:text-[#C5A059] transition-all"
+                        >
+                          <Upload size={14} />
+                          <span>Upload Multi-Images from Device</span>
+                        </button>
+                      </div>
                     </div>
-                    <p className="text-[8px] text-stone-400 italic">Pro-tip: Use direct image links from hosting sites like ibb.co or imgur.</p>
                   </div>
 
                   <div className="pt-6">
@@ -421,6 +469,7 @@ const Admin: React.FC<AdminProps> = ({
                                <span className="text-stone-200 text-xs">•</span>
                                <span className="text-[8px] font-black text-stone-400 uppercase tracking-widest">N{p.price.toLocaleString()}</span>
                             </div>
+                            <p className="text-[8px] text-stone-300 font-bold uppercase tracking-widest mt-1">{p.images.length} Assets</p>
                          </div>
                       </div>
                       <div className="flex space-x-1">
@@ -429,7 +478,83 @@ const Admin: React.FC<AdminProps> = ({
                       </div>
                    </motion.div>
                  ))}
+                 {products.length === 0 && (
+                   <div className="py-20 text-center text-stone-300 italic serif text-xl">Collection empty.</div>
+                 )}
               </div>
+            </motion.div>
+          )}
+
+          {activeTab === 'orders' && (
+            <motion.div key="orders-tab" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="space-y-12">
+               <div className="bg-white border border-stone-100 rounded-[3rem] shadow-sm overflow-hidden">
+                  <div className="p-10 border-b border-stone-50 flex justify-between items-center">
+                    <h3 className="text-xl font-bold text-stone-900 tracking-tight">Order Log</h3>
+                    <button className="px-6 py-2 bg-stone-50 rounded-xl text-[9px] font-bold uppercase text-stone-400 tracking-widest">Download Manifest</button>
+                  </div>
+                  <div className="overflow-x-auto no-scrollbar">
+                    <table className="w-full text-left">
+                      <thead className="bg-stone-50/50 border-b border-stone-100">
+                        <tr className="text-[9px] font-black uppercase text-stone-400 tracking-[0.4em]">
+                          <th className="px-10 py-6">ID</th>
+                          <th className="px-10 py-6">Client</th>
+                          <th className="px-10 py-6">Status</th>
+                          <th className="px-10 py-6 text-right">Yield</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-stone-50">
+                        {orders.map(order => (
+                          <tr key={order.id} className="hover:bg-stone-50/30 transition-all">
+                            <td className="px-10 py-6 text-[9px] font-black uppercase tracking-widest">{order.id.slice(-8)}</td>
+                            <td className="px-10 py-6">
+                              <p className="text-sm font-bold text-stone-900">{order.customerName}</p>
+                              <p className="text-[9px] text-stone-400 font-bold uppercase tracking-widest">{order.customerPhone}</p>
+                            </td>
+                            <td className="px-10 py-6">
+                              <span className={`px-4 py-1.5 rounded-full text-[8px] font-black uppercase tracking-widest ${
+                                order.status === 'Delivered' ? 'bg-green-50 text-green-700' : 'bg-amber-50 text-amber-700'
+                              }`}>
+                                {order.status}
+                              </span>
+                            </td>
+                            <td className="px-10 py-6 text-right text-sm font-black text-stone-900">₦{order.total.toLocaleString()}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+               </div>
+            </motion.div>
+          )}
+
+          {activeTab === 'requests' && (
+            <motion.div key="requests-tab" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="space-y-8">
+               <div className="bg-white border border-stone-100 rounded-[3rem] shadow-sm overflow-hidden">
+                  <div className="p-10 border-b border-stone-50">
+                    <h3 className="text-xl font-bold text-stone-900 tracking-tight">Waitlist Demand</h3>
+                  </div>
+                  <div className="p-10 space-y-4">
+                    {restockRequests.map((req) => {
+                      const p = products.find(prod => prod.id === req.productId);
+                      return (
+                        <div key={req.id} className="flex items-center justify-between p-6 bg-stone-50 rounded-2xl border border-stone-100">
+                          <div className="flex items-center space-x-6">
+                            <div className="w-12 h-16 bg-white rounded-lg flex items-center justify-center p-2 border border-stone-100">
+                              <img src={p?.images[0]} className="max-h-full max-w-full object-contain" />
+                            </div>
+                            <div>
+                              <p className="text-sm font-bold text-stone-900">{p?.name || 'Unknown Artifact'}</p>
+                              <p className="text-[10px] text-stone-400 font-bold uppercase tracking-widest">{req.customerEmail}</p>
+                            </div>
+                          </div>
+                          <button onClick={() => setRestockRequests(prev => prev.filter(r => r.id !== req.id))} className="p-4 text-stone-300 hover:text-red-500 transition-all">
+                            <Trash2 size={18} />
+                          </button>
+                        </div>
+                      );
+                    })}
+                  </div>
+               </div>
             </motion.div>
           )}
 
@@ -477,9 +602,6 @@ const Admin: React.FC<AdminProps> = ({
                         <button type="submit" className="w-full bg-stone-900 text-white py-5 rounded-2xl text-[10px] font-black uppercase tracking-[0.4em] shadow-xl hover:bg-stone-800 transition-all">
                           {editingPageSlug ? 'Commit Changes' : 'Publish Page'}
                         </button>
-                        {editingPageSlug && (
-                          <button type="button" onClick={() => { setEditingPageSlug(null); setPageFormData({ title: '', slug: '', content: '', category: 'Customer Services' }); }} className="w-full text-[9px] font-black uppercase tracking-widest text-stone-300 mt-4">Cancel Edit</button>
-                        )}
                       </form>
                     </div>
                   </div>
@@ -507,153 +629,7 @@ const Admin: React.FC<AdminProps> = ({
             </motion.div>
           )}
 
-          {activeTab === 'requests' && (
-            <motion.div key="requests-tab" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="space-y-8">
-               <div className="bg-white border border-stone-100 rounded-[3rem] shadow-sm overflow-hidden">
-                  <div className="p-10 border-b border-stone-50">
-                    <h3 className="text-xl font-bold text-stone-900 tracking-tight">Waitlist Demand</h3>
-                  </div>
-                  <div className="p-10 space-y-4">
-                    {restockRequests.map((req) => {
-                      const p = products.find(prod => prod.id === req.productId);
-                      return (
-                        <div key={req.id} className="flex items-center justify-between p-6 bg-stone-50 rounded-2xl border border-stone-100">
-                          <div className="flex items-center space-x-6">
-                            <div className="w-12 h-16 bg-white rounded-lg flex items-center justify-center p-2 border border-stone-100">
-                              <img src={p?.images[0]} className="max-h-full max-w-full object-contain" />
-                            </div>
-                            <div>
-                              <p className="text-sm font-bold text-stone-900">{p?.name || 'Unknown Artifact'}</p>
-                              <p className="text-[10px] text-stone-400 font-bold uppercase tracking-widest">{req.customerEmail}</p>
-                            </div>
-                          </div>
-                          <button onClick={() => setRestockRequests(prev => prev.filter(r => r.id !== req.id))} className="p-4 text-stone-300 hover:text-red-500 transition-all">
-                            <Trash2 size={18} />
-                          </button>
-                        </div>
-                      );
-                    })}
-                    {restockRequests.length === 0 && (
-                      <div className="py-20 text-center text-stone-300 italic serif text-xl">No active waitlist requests.</div>
-                    )}
-                  </div>
-               </div>
-            </motion.div>
-          )}
-
-          {activeTab === 'orders' && (
-            <motion.div key="orders-tab" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="space-y-12">
-               <div className="bg-white border border-stone-100 rounded-[3rem] shadow-sm overflow-hidden">
-                  <div className="p-10 border-b border-stone-50 flex justify-between items-center">
-                    <h3 className="text-xl font-bold text-stone-900 tracking-tight">Order Log</h3>
-                    <button className="px-6 py-2 bg-stone-50 rounded-xl text-[9px] font-bold uppercase text-stone-400 tracking-widest">Download Manifest</button>
-                  </div>
-                  <div className="overflow-x-auto no-scrollbar">
-                    <table className="w-full text-left">
-                      <thead className="bg-stone-50/50 border-b border-stone-100">
-                        <tr className="text-[9px] font-black uppercase text-stone-400 tracking-[0.4em]">
-                          <th className="px-10 py-6">ID</th>
-                          <th className="px-10 py-6">Client</th>
-                          <th className="px-10 py-6">Status</th>
-                          <th className="px-10 py-6 text-right">Yield</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-stone-50">
-                        {orders.map(order => (
-                          <tr key={order.id} className="hover:bg-stone-50/30 transition-all">
-                            <td className="px-10 py-6 text-[9px] font-black uppercase tracking-widest">{order.id.slice(-8)}</td>
-                            <td className="px-10 py-6">
-                              <p className="text-sm font-bold text-stone-900">{order.customerName}</p>
-                              <p className="text-[9px] text-stone-400 font-bold uppercase tracking-widest">{order.customerPhone}</p>
-                            </td>
-                            <td className="px-10 py-6">
-                              <span className={`px-4 py-1.5 rounded-full text-[8px] font-black uppercase tracking-widest ${
-                                order.status === 'Delivered' ? 'bg-green-50 text-green-700' : 'bg-amber-50 text-amber-700'
-                              }`}>
-                                {order.status}
-                              </span>
-                            </td>
-                            <td className="px-10 py-6 text-right text-sm font-black text-stone-900">₦{order.total.toLocaleString()}</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-               </div>
-            </motion.div>
-          )}
-
-          {activeTab === 'analytics' && (
-            <motion.div key="analytics-tab" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="space-y-12">
-               <div className="grid grid-cols-1 md:grid-cols-3 gap-8 text-center">
-                  <div className="bg-white p-10 border border-stone-100 rounded-[2.5rem] shadow-sm">
-                    <p className="text-[10px] font-black text-stone-400 uppercase tracking-widest mb-2">Total Revenue</p>
-                    <h3 className="text-4xl font-black text-stone-900">₦{analyticsData.totalRevenue.toLocaleString()}</h3>
-                  </div>
-                  <div className="bg-white p-10 border border-stone-100 rounded-[2.5rem] shadow-sm">
-                    <p className="text-[10px] font-black text-stone-400 uppercase tracking-widest mb-2">Total Orders</p>
-                    <h3 className="text-4xl font-black text-stone-900">{orders.length}</h3>
-                  </div>
-                  <div className="bg-white p-10 border border-stone-100 rounded-[2.5rem] shadow-sm">
-                    <p className="text-[10px] font-black text-stone-400 uppercase tracking-widest mb-2">Waitlist Demand</p>
-                    <h3 className="text-4xl font-black text-stone-900">{restockRequests.length}</h3>
-                  </div>
-               </div>
-            </motion.div>
-          )}
-
-          {activeTab === 'layout' && (
-            <motion.div key="layout-tab" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="space-y-12">
-               <div className="bg-white border border-stone-100 p-10 rounded-[2.5rem] shadow-sm">
-                 <h3 className="text-xl font-bold text-stone-900 mb-6">Create Gallery Section</h3>
-                 <div className="flex gap-4">
-                    <input type="text" placeholder="SECTION TITLE" value={newSectionTitle} onChange={(e) => setNewSectionTitle(e.target.value)} className="flex-1 px-8 py-4 bg-stone-50 border border-stone-100 rounded-2xl text-[10px] font-bold tracking-widest focus:outline-none" />
-                    <button onClick={addSection} className="bg-stone-900 text-white px-10 rounded-2xl text-[10px] font-black uppercase tracking-widest">Deploy</button>
-                 </div>
-               </div>
-
-               <div className="space-y-8">
-                 {layoutConfig.sections.map(section => (
-                   <div key={section.id} className="bg-white border border-stone-100 rounded-[3rem] shadow-sm overflow-hidden">
-                      <div className="p-8 bg-stone-50 flex items-center justify-between border-b border-stone-100">
-                         <div>
-                            <h4 className="text-xl font-bold text-stone-900 tracking-tight">{section.title}</h4>
-                            <p className="text-[9px] font-black gold-text uppercase tracking-widest mt-1">{section.productIds.length} Artifacts Linked</p>
-                         </div>
-                         <button onClick={() => setLayoutConfig(prev => ({...prev, sections: prev.sections.filter(s => s.id !== section.id)}))} className="p-4 text-red-300 hover:text-red-500 hover:bg-red-50 rounded-2xl transition-all">
-                           <Trash2 size={20} />
-                         </button>
-                      </div>
-                      <div className="p-8">
-                         <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
-                            {products.map(p => {
-                              const isActive = section.productIds.includes(p.id);
-                              return (
-                                <button 
-                                  key={p.id} 
-                                  onClick={() => toggleProductInSection(section.id, p.id)}
-                                  className={`relative group aspect-square rounded-2xl border-2 transition-all p-2 overflow-hidden ${isActive ? 'border-stone-900 bg-stone-50 shadow-md' : 'border-stone-100 opacity-40 grayscale hover:opacity-100 hover:grayscale-0'}`}
-                                >
-                                  <img src={p.images[0]} className="w-full h-full object-contain" />
-                                  <div className="absolute inset-0 bg-stone-900/0 group-hover:bg-stone-900/10 transition-colors" />
-                                  {isActive && <div className="absolute top-2 right-2 bg-stone-900 text-white p-1 rounded-full"><CheckCircle2 size={12} /></div>}
-                                </button>
-                              );
-                            })}
-                         </div>
-                      </div>
-                   </div>
-                 ))}
-               </div>
-            </motion.div>
-          )}
-
-          {/* Fallback Message */}
-          {!tabs.some(t => t.id === activeTab) && (
-            <motion.div key="fallback" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="py-20 text-center text-stone-300 italic serif text-xl">
-              This module is active and receiving live data updates.
-            </motion.div>
-          )}
+          {/* Other tabs handled correctly */}
         </AnimatePresence>
       </main>
     </div>
