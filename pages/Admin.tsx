@@ -4,12 +4,11 @@ import {
   Package, ShoppingCart, Plus, LogOut, Trash2, 
   Search, BarChart3, Edit3, X, BellRing, 
   Loader2, Lock, Eye, Calendar, Mail, Palette,
-  CheckCircle2, Layers, PenTool, Sparkles, LayoutGrid, ToggleLeft, ToggleRight, EyeOff, Image as ImageIcon, AlertTriangle, TrendingUp, TrendingDown, Activity, DollarSign, Target, Award, ArrowUp, ArrowDown, GripVertical, User, MapPin, Phone, ExternalLink, Clock, Send, FileText, Info
+  CheckCircle2, Layers, PenTool, Sparkles, LayoutGrid, ToggleLeft, ToggleRight, EyeOff, Image as ImageIcon, AlertTriangle, TrendingUp, TrendingDown, Activity, DollarSign, Target, Award, ArrowUp, ArrowDown, GripVertical, User, MapPin, Phone, ExternalLink, Clock, Send, FileText, Info, ChevronRight, Menu, ExternalLink as LinkIcon
 } from 'lucide-react';
 import { Product, Order, ViewLog, RestockRequest, HomeLayoutConfig, SectionConfig, FooterPage } from '../types';
 import Logo from '../components/Logo';
 import { motion, AnimatePresence } from 'framer-motion';
-import { GoogleGenAI, Type } from "@google/genai";
 
 interface AdminProps {
   products: Product[];
@@ -45,17 +44,11 @@ const Admin: React.FC<AdminProps> = ({
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [passcode, setPasscode] = useState('');
   const [isLoggingIn, setIsLoggingIn] = useState(false);
-  const [activeTab, setActiveTab] = useState<'products' | 'orders' | 'analytics' | 'requests' | 'correspondence' | 'layout' | 'pages'>('products');
+  const [activeTab, setActiveTab] = useState<'products' | 'orders' | 'analytics' | 'requests' | 'layout' | 'pages'>('products');
   const [editingId, setEditingId] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [customBrand, setCustomBrand] = useState('');
-  const timeoutRef = useRef<any>(null);
   
-  // Layout Management State
-  const [newSectionTitle, setNewSectionTitle] = useState('');
-  const [editingSectionId, setEditingSectionId] = useState<string | null>(null);
-  const [productSearchInLayout, setProductSearchInLayout] = useState('');
-
   // Pages State
   const [editingPageSlug, setEditingPageSlug] = useState<string | null>(null);
   const [pageFormData, setPageFormData] = useState<Partial<FooterPage>>({
@@ -64,6 +57,9 @@ const Admin: React.FC<AdminProps> = ({
     content: '',
     category: 'Customer Services'
   });
+
+  // Layout Management State
+  const [newSectionTitle, setNewSectionTitle] = useState('');
 
   // States for product form handling
   const [priceInput, setPriceInput] = useState<string>('');
@@ -89,7 +85,6 @@ const Admin: React.FC<AdminProps> = ({
   const handleLogout = useCallback(() => {
     setIsLoggedIn(false);
     localStorage.removeItem(ADMIN_SESSION_KEY);
-    if (timeoutRef.current) clearTimeout(timeoutRef.current);
   }, []);
 
   useEffect(() => {
@@ -127,7 +122,7 @@ const Admin: React.FC<AdminProps> = ({
     e.preventDefault();
     const numericPrice = parseFloat(priceInput);
     if (!formData.name || isNaN(numericPrice) || !formData.images?.length) {
-      alert("Validation Error: Product designation and gallery assets required.");
+      alert("Missing Required Fields: Product Name, Price, and at least one Image are required.");
       return;
     }
     const finalProduct = {
@@ -140,7 +135,7 @@ const Admin: React.FC<AdminProps> = ({
     } as Product;
 
     if (editingId) setProducts(prev => prev.map(p => p.id === editingId ? finalProduct : p));
-    else setProducts(prev => [...prev, finalProduct]);
+    else setProducts(prev => [finalProduct, ...prev]);
     
     cancelEdit();
   };
@@ -151,14 +146,18 @@ const Admin: React.FC<AdminProps> = ({
     setPriceInput(product.price.toString());
     setTagInput(product.tags.join(', '));
     setSizeInput(product.sizes?.join(', ') || '');
+    setCustomBrand(LUXURY_BRANDS.includes(product.brand) ? '' : product.brand);
+    if (!LUXURY_BRANDS.includes(product.brand)) setFormData(f => ({ ...f, brand: 'CUSTOM' }));
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const cancelEdit = () => {
     setEditingId(null);
     setPriceInput('');
+    setTagInput('');
+    setSizeInput('');
+    setCustomBrand('');
     setFormData({ name: '', brand: 'ASHLUXE', price: 0, images: [], description: '', category: 'Apparel', stock: 0, tags: [], colors: [], sizes: [] });
-    setTagInput(''); setSizeInput('');
   };
 
   // --- Pages Management ---
@@ -184,7 +183,7 @@ const Admin: React.FC<AdminProps> = ({
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  // --- Layout Tab Operations ---
+  // --- Layout Operations ---
   const addSection = () => {
     if (!newSectionTitle) return;
     const newSection: SectionConfig = {
@@ -198,61 +197,35 @@ const Admin: React.FC<AdminProps> = ({
     setNewSectionTitle('');
   };
 
-  const deleteSection = (id: string) => {
-    if (!confirm('Destroy this section architect?')) return;
-    setLayoutConfig(prev => ({ ...prev, sections: prev.sections.filter(s => s.id !== id) }));
-  };
-
-  const moveSection = (id: string, direction: 'up' | 'down') => {
-    const idx = layoutConfig.sections.findIndex(s => s.id === id);
-    if (idx === -1) return;
-    const newSections = [...layoutConfig.sections];
-    const targetIdx = direction === 'up' ? idx - 1 : idx + 1;
-    if (targetIdx < 0 || targetIdx >= newSections.length) return;
-    [newSections[idx], newSections[targetIdx]] = [newSections[targetIdx], newSections[idx]];
-    setLayoutConfig(prev => ({ ...prev, sections: newSections }));
-  };
-
-  const toggleSectionVisibility = (id: string) => {
+  const toggleProductInSection = (sectionId: string, productId: string) => {
     setLayoutConfig(prev => ({
       ...prev,
-      sections: prev.sections.map(s => s.id === id ? { ...s, isVisible: !s.isVisible } : s)
+      sections: prev.sections.map(s => {
+        if (s.id === sectionId) {
+          const exists = s.productIds.includes(productId);
+          return {
+            ...s,
+            productIds: exists ? s.productIds.filter(id => id !== productId) : [...s.productIds, productId]
+          };
+        }
+        return s;
+      })
     }));
   };
 
-  // --- Analytics & Formatting ---
   const analyticsData = useMemo(() => {
-    const last7Days = Array.from({ length: 7 }, (_, i) => {
-      const d = new Date();
-      d.setDate(d.getDate() - (6 - i));
-      return d.toLocaleDateString('en-US', { weekday: 'short' }).toUpperCase();
-    });
-
-    const salesPerDay = Array.from({ length: 7 }, (_, i) => {
-      const d = new Date();
-      d.setDate(d.getDate() - (6 - i));
-      const startOfDay = new Date(d.setHours(0,0,0,0)).getTime();
-      const endOfDay = new Date(d.setHours(23,59,59,999)).getTime();
-      return orders
-        .filter(order => {
-          const orderTime = new Date(order.date).getTime();
-          return orderTime >= startOfDay && orderTime <= endOfDay;
-        })
-        .reduce((sum, order) => sum + order.items.reduce((iSum, item) => iSum + item.quantity, 0), 0);
-    });
-
     const totalRevenue = orders.reduce((sum, order) => sum + order.total, 0);
-    const avgOrderValue = orders.length > 0 ? totalRevenue / orders.length : 0;
-    const conversionRate = viewLogs.length > 0 ? (orders.length / viewLogs.length) * 100 : 0;
+    return { totalRevenue };
+  }, [orders]);
 
-    return {
-      labels: last7Days,
-      sales: salesPerDay,
-      totalRevenue,
-      avgOrderValue,
-      conversionRate
-    };
-  }, [viewLogs, orders]);
+  const tabs = [
+    { id: 'products', label: 'Products', icon: Package },
+    { id: 'orders', label: 'Orders', icon: ShoppingCart },
+    { id: 'analytics', label: 'Analytics', icon: BarChart3 },
+    { id: 'requests', label: 'Waitlist', icon: BellRing },
+    { id: 'pages', label: 'Boutique Pages', icon: FileText },
+    { id: 'layout', label: 'Home Layout', icon: LayoutGrid }
+  ];
 
   if (!isLoggedIn) {
     return (
@@ -280,17 +253,26 @@ const Admin: React.FC<AdminProps> = ({
 
   return (
     <div className="min-h-screen bg-[#FDFDFD] flex flex-col lg:flex-row font-sans">
+      {/* Tab Navigation (Improved Sticky Top Bar for Tablet/Mobile) */}
+      <div className="lg:hidden fixed top-[70px] left-0 right-0 z-[9000] glass border-b border-stone-200 shadow-lg overflow-x-auto no-scrollbar py-2">
+        <div className="flex px-4 space-x-2 md:space-x-4 min-w-max">
+          {tabs.map((tab) => (
+            <button 
+              key={tab.id} onClick={() => setActiveTab(tab.id as any)}
+              className={`flex-shrink-0 flex items-center space-x-3 px-6 py-4 rounded-2xl text-[11px] font-black uppercase tracking-widest transition-all ${activeTab === tab.id ? 'bg-stone-900 text-white shadow-xl scale-105' : 'text-stone-400 bg-white border border-stone-100'}`}
+            >
+              <tab.icon size={14} />
+              <span>{tab.label}</span>
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Sidebar Desktop */}
       <aside className="hidden lg:flex w-72 bg-white border-r border-stone-100 fixed h-full flex-col z-[100] pt-40">
         <div className="p-8">
           <nav className="space-y-4">
-            {[
-              { id: 'products', label: 'Products', icon: Package },
-              { id: 'orders', label: 'Orders', icon: ShoppingCart },
-              { id: 'analytics', label: 'Analytics', icon: BarChart3 },
-              { id: 'requests', label: 'Waitlist', icon: BellRing },
-              { id: 'pages', label: 'Boutique Pages', icon: FileText },
-              { id: 'layout', label: 'Home Layout', icon: LayoutGrid }
-            ].map((tab) => (
+            {tabs.map((tab) => (
               <button 
                 key={tab.id} onClick={() => setActiveTab(tab.id as any)}
                 className={`flex items-center space-x-4 w-full px-6 py-4 rounded-2xl text-[10px] font-bold tracking-widest uppercase transition-all ${activeTab === tab.id ? 'bg-stone-900 text-white shadow-lg scale-105' : 'text-stone-400 hover:text-stone-900'}`}
@@ -304,32 +286,158 @@ const Admin: React.FC<AdminProps> = ({
         <div className="mt-auto p-8 border-t border-stone-50">
           <button onClick={handleLogout} className="text-[10px] font-bold tracking-widest uppercase text-red-500 flex items-center space-x-2">
             <LogOut size={16} />
-            <span>Terminate</span>
+            <span>Terminate Session</span>
           </button>
         </div>
       </aside>
 
-      <main className="flex-1 lg:ml-72 p-8 lg:p-20 pt-32 lg:pt-44">
+      <main className="flex-1 lg:ml-72 p-8 lg:p-20 pt-48 lg:pt-44">
         <header className="mb-16 flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
            <div>
-              <h1 className="text-6xl font-bold serif text-stone-900 tracking-tight italic">{activeTab.charAt(0).toUpperCase() + activeTab.slice(1).replace('pages', 'Boutique Pages')}</h1>
+              <h1 className="text-4xl md:text-6xl font-bold serif text-stone-900 tracking-tight italic">
+                {tabs.find(t => t.id === activeTab)?.label}
+              </h1>
               <div className="flex items-center mt-3 space-x-3">
                 <span className="w-6 h-[2px] bg-[#C5A059]" />
-                <p className="text-[10px] text-stone-400 uppercase tracking-[0.4em] font-bold">ZARHRAH EXECUTIVE SUITE</p>
+                <p className="text-[10px] text-stone-400 uppercase tracking-[0.4em] font-bold">ZARHRAH EXECUTIVE PANEL</p>
               </div>
            </div>
-           <div className="relative w-full md:w-80">
-              <input type="text" placeholder="QUERY COLLECTION..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="w-full pl-12 pr-6 py-4 bg-stone-50 border border-stone-100 rounded-full text-[10px] font-bold tracking-[0.2em] uppercase focus:outline-none" />
-              <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-stone-300" size={16} />
-           </div>
+           {activeTab === 'products' && (
+             <div className="relative w-full md:w-80">
+                <input type="text" placeholder="QUERY COLLECTION..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="w-full pl-12 pr-6 py-4 bg-stone-50 border border-stone-100 rounded-full text-[10px] font-bold tracking-[0.2em] uppercase focus:outline-none shadow-sm" />
+                <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-stone-300" size={16} />
+             </div>
+           )}
         </header>
 
         <AnimatePresence mode="wait">
+          {activeTab === 'products' && (
+            <motion.div key="products-tab" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="grid lg:grid-cols-12 gap-16">
+              <div className="lg:col-span-5 bg-white p-10 border border-stone-100 shadow-xl rounded-[3rem] h-fit lg:sticky lg:top-44 overflow-y-auto no-scrollbar max-h-[85vh]">
+                <form onSubmit={handleSubmit} className="space-y-6">
+                  <div className="space-y-2">
+                    <label className="text-[9px] font-black text-stone-400 uppercase tracking-widest ml-1">Brand Identity</label>
+                    <div className="space-y-3">
+                      <select value={formData.brand} onChange={(e) => setFormData({...formData, brand: e.target.value as any})} className="w-full px-6 py-4 bg-stone-50 border border-stone-100 rounded-2xl text-[10px] font-bold tracking-widest focus:outline-none">
+                        {LUXURY_BRANDS.map(b => <option key={b} value={b}>{b}</option>)}
+                      </select>
+                      {formData.brand === 'CUSTOM' && (
+                        <input type="text" placeholder="ENTER BRAND NAME" value={customBrand} onChange={(e) => setCustomBrand(e.target.value)} className="w-full px-6 py-4 bg-stone-50 border border-stone-100 rounded-2xl text-[10px] font-bold tracking-widest focus:outline-none" />
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-[9px] font-black text-stone-400 uppercase tracking-widest ml-1">Product Designation</label>
+                    <input type="text" placeholder="NAME OF ARTIFACT" value={formData.name} onChange={(e) => setFormData({...formData, name: e.target.value})} className="w-full px-6 py-4 bg-stone-50 border border-stone-100 rounded-2xl text-[10px] font-bold tracking-widest focus:outline-none" />
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-6">
+                    <div className="space-y-2">
+                      <label className="text-[9px] font-black text-stone-400 uppercase tracking-widest ml-1">Price (NGN)</label>
+                      <input type="text" placeholder="190000" value={priceInput} onChange={(e) => setPriceInput(e.target.value)} className="w-full px-6 py-4 bg-stone-50 border border-stone-100 rounded-2xl text-[10px] font-bold tracking-widest focus:outline-none" />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-[9px] font-black text-stone-400 uppercase tracking-widest ml-1">Studio Stock</label>
+                      <input type="number" placeholder="20" min="0" value={formData.stock} onChange={(e) => setFormData({...formData, stock: parseInt(e.target.value) || 0})} className="w-full px-6 py-4 bg-stone-50 border border-stone-100 rounded-2xl text-[10px] font-bold tracking-widest focus:outline-none" />
+                    </div>
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <label className="text-[9px] font-black text-stone-400 uppercase tracking-widest ml-1 flex items-center">
+                      Internal Tags <Info size={10} className="ml-1 opacity-50" />
+                    </label>
+                    <input 
+                      type="text" placeholder="e.g. men, new, summer" value={tagInput} onChange={(e) => setTagInput(e.target.value)} 
+                      className="w-full px-6 py-4 bg-stone-50 border border-stone-100 rounded-2xl text-[10px] font-bold tracking-widest focus:outline-none" 
+                    />
+                  </div>
+
+                  <div className="space-y-4 pt-4 border-t border-stone-50">
+                    <label className="text-[9px] font-black text-stone-400 uppercase tracking-widest ml-1 flex items-center">
+                      <ImageIcon size={14} className="mr-2 text-[#C5A059]" /> Asset Gallery
+                    </label>
+                    
+                    {/* Live Preview for typed URL */}
+                    {imageInput && (
+                      <div className="p-4 bg-stone-50 border border-stone-200 rounded-2xl animate-in fade-in slide-in-from-top-2">
+                        <p className="text-[8px] font-black uppercase tracking-widest text-stone-400 mb-2">Live URL Preview</p>
+                        <div className="aspect-square w-24 rounded-lg overflow-hidden bg-white border border-stone-100 shadow-sm flex items-center justify-center">
+                          <img 
+                            src={imageInput} 
+                            onError={(e) => (e.currentTarget.style.display = 'none')} 
+                            onLoad={(e) => (e.currentTarget.style.display = 'block')}
+                            className="w-full h-full object-contain" 
+                            alt="URL Preview" 
+                          />
+                          <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-20">
+                             <LinkIcon size={12} />
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Gallery Items */}
+                    <div className="grid grid-cols-4 gap-2">
+                      {formData.images?.map((img, i) => (
+                        <div key={i} className="relative group aspect-square rounded-xl bg-stone-50 border border-stone-100 overflow-hidden">
+                          <img src={img} className="w-full h-full object-cover" />
+                          <button type="button" onClick={() => removeImage(i)} className="absolute inset-0 bg-red-500/80 text-white opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                            <Trash2 size={12} />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+
+                    <div className="flex gap-2">
+                      <input type="text" placeholder="IMAGE URL..." value={imageInput} onChange={(e) => setImageInput(e.target.value)} className="flex-1 px-5 py-3 bg-stone-50 border border-stone-100 rounded-xl text-[9px] font-bold focus:outline-none" />
+                      <button type="button" onClick={addImage} className="bg-stone-900 text-white px-4 rounded-xl hover:bg-stone-700 transition-colors shadow-lg"><Plus size={16} /></button>
+                    </div>
+                    <p className="text-[8px] text-stone-400 italic">Pro-tip: Use direct image links from hosting sites like ibb.co or imgur.</p>
+                  </div>
+
+                  <div className="pt-6">
+                     <button type="submit" className="w-full bg-[#1c1917] text-white py-6 rounded-2xl text-[11px] font-bold tracking-[0.3em] uppercase shadow-xl hover:scale-[1.02] active:scale-95 transition-all">
+                        {editingId ? "Update Portfolio" : "Deploy Artifact"}
+                     </button>
+                     {editingId && (
+                       <button type="button" onClick={cancelEdit} className="w-full text-[9px] font-black uppercase tracking-widest text-stone-300 mt-4">Cancel Editing</button>
+                     )}
+                  </div>
+                </form>
+              </div>
+
+              <div className="lg:col-span-7 space-y-6">
+                 {products.filter(p => p.name.toLowerCase().includes(searchTerm.toLowerCase()) || p.brand.toLowerCase().includes(searchTerm.toLowerCase())).map(p => (
+                   <motion.div layout key={p.id} className="bg-white p-6 border border-stone-100 rounded-[2rem] flex items-center justify-between group hover:shadow-lg transition-all">
+                      <div className="flex items-center space-x-6">
+                         <div className="w-16 h-20 bg-stone-50 rounded-xl border border-stone-100 p-2 flex items-center justify-center">
+                            <img src={p.images[0]} className="max-h-full max-w-full object-contain" />
+                         </div>
+                         <div>
+                            <h3 className="text-sm font-bold text-stone-900 tracking-tight">{p.name}</h3>
+                            <div className="flex items-center space-x-3 mt-1">
+                               <span className="text-[8px] font-black gold-text uppercase tracking-widest">{p.brand}</span>
+                               <span className="text-stone-200 text-xs">•</span>
+                               <span className="text-[8px] font-black text-stone-400 uppercase tracking-widest">N{p.price.toLocaleString()}</span>
+                            </div>
+                         </div>
+                      </div>
+                      <div className="flex space-x-1">
+                         <button onClick={() => startEdit(p)} className="p-3 text-stone-300 hover:text-stone-900 hover:bg-stone-50 rounded-xl transition-all"><Edit3 size={18} /></button>
+                         <button onClick={() => { if(confirm('Delete permanently?')) setProducts(prev => prev.filter(pr => pr.id !== p.id)) }} className="p-3 text-stone-300 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all"><Trash2 size={18} /></button>
+                      </div>
+                   </motion.div>
+                 ))}
+              </div>
+            </motion.div>
+          )}
+
           {activeTab === 'pages' && (
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-12">
+            <motion.div key="pages-tab" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="space-y-12">
                <div className="grid lg:grid-cols-12 gap-12">
                   <div className="lg:col-span-5">
-                    <div className="bg-white border border-stone-100 p-10 rounded-[2.5rem] shadow-sm sticky top-44">
+                    <div className="bg-white border border-stone-100 p-10 rounded-[2.5rem] shadow-sm lg:sticky lg:top-44">
                       <h3 className="text-xl font-bold text-stone-900 mb-8 serif italic">{editingPageSlug ? 'Modify Content' : 'Create Boutique Page'}</h3>
                       <form onSubmit={handlePageSubmit} className="space-y-6">
                         <div className="space-y-2">
@@ -370,7 +478,7 @@ const Admin: React.FC<AdminProps> = ({
                           {editingPageSlug ? 'Commit Changes' : 'Publish Page'}
                         </button>
                         {editingPageSlug && (
-                          <button type="button" onClick={() => { setEditingPageSlug(null); setPageFormData({ title: '', slug: '', content: '', category: 'Customer Services' }); }} className="w-full text-[9px] font-black uppercase tracking-widest text-stone-300">Cancel Edit</button>
+                          <button type="button" onClick={() => { setEditingPageSlug(null); setPageFormData({ title: '', slug: '', content: '', category: 'Customer Services' }); }} className="w-full text-[9px] font-black uppercase tracking-widest text-stone-300 mt-4">Cancel Edit</button>
                         )}
                       </form>
                     </div>
@@ -399,154 +507,156 @@ const Admin: React.FC<AdminProps> = ({
             </motion.div>
           )}
 
-          {activeTab === 'products' && (
-            <div className="grid lg:grid-cols-12 gap-16">
-              <div className="lg:col-span-5 bg-white p-12 border border-stone-100 shadow-xl rounded-[3rem] h-fit sticky top-44 overflow-y-auto no-scrollbar max-h-[75vh]">
-                <form onSubmit={handleSubmit} className="space-y-8">
-                  <div className="space-y-3">
-                    <label className="text-[9px] font-black text-stone-400 uppercase tracking-widest ml-1">Brand Identity</label>
-                    <select value={formData.brand} onChange={(e) => setFormData({...formData, brand: e.target.value})} className="w-full px-6 py-4.5 bg-stone-50 border border-stone-100 rounded-2xl text-[10px] font-bold tracking-widest focus:outline-none">
-                      {LUXURY_BRANDS.map(b => <option key={b} value={b}>{b}</option>)}
-                    </select>
+          {activeTab === 'requests' && (
+            <motion.div key="requests-tab" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="space-y-8">
+               <div className="bg-white border border-stone-100 rounded-[3rem] shadow-sm overflow-hidden">
+                  <div className="p-10 border-b border-stone-50">
+                    <h3 className="text-xl font-bold text-stone-900 tracking-tight">Waitlist Demand</h3>
                   </div>
-                  <div className="space-y-3">
-                    <label className="text-[9px] font-black text-stone-400 uppercase tracking-widest ml-1">Product Designation</label>
-                    <input type="text" placeholder="DESIGNATION" value={formData.name} onChange={(e) => setFormData({...formData, name: e.target.value})} className="w-full px-6 py-4.5 bg-stone-50 border border-stone-100 rounded-2xl text-[10px] font-bold tracking-widest focus:outline-none" />
-                  </div>
-                  <div className="grid grid-cols-2 gap-8">
-                    <div className="space-y-3">
-                      <label className="text-[9px] font-black text-stone-400 uppercase tracking-widest ml-1">Market Price (NGN)</label>
-                      <input type="text" placeholder="190000" value={priceInput} onChange={(e) => setPriceInput(e.target.value)} className="w-full px-6 py-4.5 bg-stone-50 border border-stone-100 rounded-2xl text-[10px] font-bold tracking-widest focus:outline-none" />
-                    </div>
-                    <div className="space-y-3">
-                      <label className="text-[9px] font-black text-stone-400 uppercase tracking-widest ml-1">Studio Stock</label>
-                      <input type="number" placeholder="20" min="0" value={formData.stock} onChange={(e) => setFormData({...formData, stock: parseInt(e.target.value) || 0})} className="w-full px-6 py-4.5 bg-stone-50 border border-stone-100 rounded-2xl text-[10px] font-bold tracking-widest focus:outline-none" />
-                    </div>
-                  </div>
-                  
-                  <div className="space-y-3">
-                    <label className="text-[9px] font-black text-stone-400 uppercase tracking-widest ml-1 flex items-center">
-                      Internal Tags <Info size={10} className="ml-1 opacity-50" />
-                    </label>
-                    <input 
-                      type="text" placeholder="e.g. men, t-shirts, new" value={tagInput} onChange={(e) => setTagInput(e.target.value)} 
-                      className="w-full px-6 py-4.5 bg-stone-50 border border-stone-100 rounded-2xl text-[10px] font-bold tracking-widest focus:outline-none" 
-                    />
-                    <p className="text-[8px] text-stone-400 uppercase tracking-widest mt-1">
-                      Use comma-separated tags to align with footer category links.
-                    </p>
-                  </div>
-
-                  <div className="space-y-6 pt-6 border-t border-stone-50">
-                    <label className="text-[9px] font-black text-stone-400 uppercase tracking-widest ml-1 flex items-center">
-                      <ImageIcon size={14} className="mr-2 text-[#C5A059]" /> Asset Gallery
-                    </label>
-                    <div className="flex gap-4">
-                      <input type="text" placeholder="IMAGE URL..." value={imageInput} onChange={(e) => setImageInput(e.target.value)} className="flex-1 px-6 py-4 bg-stone-50 border border-stone-100 rounded-2xl text-[10px] font-bold focus:outline-none" />
-                      <button type="button" onClick={addImage} className="bg-stone-900 text-white px-6 rounded-2xl"><Plus size={18} /></button>
-                    </div>
-                  </div>
-                  <div className="pt-10">
-                     <button type="submit" className="w-full bg-[#1c1917] text-white py-8 rounded-[1.5rem] text-sm font-bold tracking-[0.3em] uppercase shadow-2xl hover:scale-105 transition-all">
-                        {editingId ? "Update Portfolio" : "Deploy Drop"}
-                     </button>
-                  </div>
-                </form>
-              </div>
-              <div className="lg:col-span-7 space-y-8">
-                 {products.filter(p => p.name.toLowerCase().includes(searchTerm.toLowerCase())).map(p => (
-                   <div key={p.id} className="bg-white p-8 border border-stone-100 rounded-[2.5rem] flex items-center justify-between group hover:shadow-xl transition-all">
-                      <div className="flex items-center space-x-8">
-                         <div className="w-24 h-28 bg-stone-50 rounded-[1.5rem] border border-stone-100 p-4 flex items-center justify-center">
-                            <img src={p.images[0]} className="max-h-full max-w-full object-contain" />
-                         </div>
-                         <div>
-                            <h3 className="text-xl font-bold text-stone-900 tracking-tight leading-tight">{p.name}</h3>
-                            <div className="flex items-center space-x-3 mt-2">
-                               <span className="text-[9px] font-black gold-text uppercase tracking-widest">{p.brand}</span>
-                               <span className="text-stone-200">•</span>
-                               <span className="text-[9px] font-black text-stone-400 uppercase tracking-widest">N{p.price.toLocaleString()}</span>
+                  <div className="p-10 space-y-4">
+                    {restockRequests.map((req) => {
+                      const p = products.find(prod => prod.id === req.productId);
+                      return (
+                        <div key={req.id} className="flex items-center justify-between p-6 bg-stone-50 rounded-2xl border border-stone-100">
+                          <div className="flex items-center space-x-6">
+                            <div className="w-12 h-16 bg-white rounded-lg flex items-center justify-center p-2 border border-stone-100">
+                              <img src={p?.images[0]} className="max-h-full max-w-full object-contain" />
                             </div>
+                            <div>
+                              <p className="text-sm font-bold text-stone-900">{p?.name || 'Unknown Artifact'}</p>
+                              <p className="text-[10px] text-stone-400 font-bold uppercase tracking-widest">{req.customerEmail}</p>
+                            </div>
+                          </div>
+                          <button onClick={() => setRestockRequests(prev => prev.filter(r => r.id !== req.id))} className="p-4 text-stone-300 hover:text-red-500 transition-all">
+                            <Trash2 size={18} />
+                          </button>
+                        </div>
+                      );
+                    })}
+                    {restockRequests.length === 0 && (
+                      <div className="py-20 text-center text-stone-300 italic serif text-xl">No active waitlist requests.</div>
+                    )}
+                  </div>
+               </div>
+            </motion.div>
+          )}
+
+          {activeTab === 'orders' && (
+            <motion.div key="orders-tab" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="space-y-12">
+               <div className="bg-white border border-stone-100 rounded-[3rem] shadow-sm overflow-hidden">
+                  <div className="p-10 border-b border-stone-50 flex justify-between items-center">
+                    <h3 className="text-xl font-bold text-stone-900 tracking-tight">Order Log</h3>
+                    <button className="px-6 py-2 bg-stone-50 rounded-xl text-[9px] font-bold uppercase text-stone-400 tracking-widest">Download Manifest</button>
+                  </div>
+                  <div className="overflow-x-auto no-scrollbar">
+                    <table className="w-full text-left">
+                      <thead className="bg-stone-50/50 border-b border-stone-100">
+                        <tr className="text-[9px] font-black uppercase text-stone-400 tracking-[0.4em]">
+                          <th className="px-10 py-6">ID</th>
+                          <th className="px-10 py-6">Client</th>
+                          <th className="px-10 py-6">Status</th>
+                          <th className="px-10 py-6 text-right">Yield</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-stone-50">
+                        {orders.map(order => (
+                          <tr key={order.id} className="hover:bg-stone-50/30 transition-all">
+                            <td className="px-10 py-6 text-[9px] font-black uppercase tracking-widest">{order.id.slice(-8)}</td>
+                            <td className="px-10 py-6">
+                              <p className="text-sm font-bold text-stone-900">{order.customerName}</p>
+                              <p className="text-[9px] text-stone-400 font-bold uppercase tracking-widest">{order.customerPhone}</p>
+                            </td>
+                            <td className="px-10 py-6">
+                              <span className={`px-4 py-1.5 rounded-full text-[8px] font-black uppercase tracking-widest ${
+                                order.status === 'Delivered' ? 'bg-green-50 text-green-700' : 'bg-amber-50 text-amber-700'
+                              }`}>
+                                {order.status}
+                              </span>
+                            </td>
+                            <td className="px-10 py-6 text-right text-sm font-black text-stone-900">₦{order.total.toLocaleString()}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+               </div>
+            </motion.div>
+          )}
+
+          {activeTab === 'analytics' && (
+            <motion.div key="analytics-tab" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="space-y-12">
+               <div className="grid grid-cols-1 md:grid-cols-3 gap-8 text-center">
+                  <div className="bg-white p-10 border border-stone-100 rounded-[2.5rem] shadow-sm">
+                    <p className="text-[10px] font-black text-stone-400 uppercase tracking-widest mb-2">Total Revenue</p>
+                    <h3 className="text-4xl font-black text-stone-900">₦{analyticsData.totalRevenue.toLocaleString()}</h3>
+                  </div>
+                  <div className="bg-white p-10 border border-stone-100 rounded-[2.5rem] shadow-sm">
+                    <p className="text-[10px] font-black text-stone-400 uppercase tracking-widest mb-2">Total Orders</p>
+                    <h3 className="text-4xl font-black text-stone-900">{orders.length}</h3>
+                  </div>
+                  <div className="bg-white p-10 border border-stone-100 rounded-[2.5rem] shadow-sm">
+                    <p className="text-[10px] font-black text-stone-400 uppercase tracking-widest mb-2">Waitlist Demand</p>
+                    <h3 className="text-4xl font-black text-stone-900">{restockRequests.length}</h3>
+                  </div>
+               </div>
+            </motion.div>
+          )}
+
+          {activeTab === 'layout' && (
+            <motion.div key="layout-tab" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="space-y-12">
+               <div className="bg-white border border-stone-100 p-10 rounded-[2.5rem] shadow-sm">
+                 <h3 className="text-xl font-bold text-stone-900 mb-6">Create Gallery Section</h3>
+                 <div className="flex gap-4">
+                    <input type="text" placeholder="SECTION TITLE" value={newSectionTitle} onChange={(e) => setNewSectionTitle(e.target.value)} className="flex-1 px-8 py-4 bg-stone-50 border border-stone-100 rounded-2xl text-[10px] font-bold tracking-widest focus:outline-none" />
+                    <button onClick={addSection} className="bg-stone-900 text-white px-10 rounded-2xl text-[10px] font-black uppercase tracking-widest">Deploy</button>
+                 </div>
+               </div>
+
+               <div className="space-y-8">
+                 {layoutConfig.sections.map(section => (
+                   <div key={section.id} className="bg-white border border-stone-100 rounded-[3rem] shadow-sm overflow-hidden">
+                      <div className="p-8 bg-stone-50 flex items-center justify-between border-b border-stone-100">
+                         <div>
+                            <h4 className="text-xl font-bold text-stone-900 tracking-tight">{section.title}</h4>
+                            <p className="text-[9px] font-black gold-text uppercase tracking-widest mt-1">{section.productIds.length} Artifacts Linked</p>
                          </div>
+                         <button onClick={() => setLayoutConfig(prev => ({...prev, sections: prev.sections.filter(s => s.id !== section.id)}))} className="p-4 text-red-300 hover:text-red-500 hover:bg-red-50 rounded-2xl transition-all">
+                           <Trash2 size={20} />
+                         </button>
                       </div>
-                      <div className="flex space-x-2">
-                         <button onClick={() => startEdit(p)} className="p-4 text-stone-300 hover:text-stone-900"><Edit3 size={20} /></button>
-                         <button onClick={() => { if(confirm('Delete?')) setProducts(prev => prev.filter(pr => pr.id !== p.id)) }} className="p-4 text-stone-300 hover:text-red-500"><Trash2 size={20} /></button>
+                      <div className="p-8">
+                         <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
+                            {products.map(p => {
+                              const isActive = section.productIds.includes(p.id);
+                              return (
+                                <button 
+                                  key={p.id} 
+                                  onClick={() => toggleProductInSection(section.id, p.id)}
+                                  className={`relative group aspect-square rounded-2xl border-2 transition-all p-2 overflow-hidden ${isActive ? 'border-stone-900 bg-stone-50 shadow-md' : 'border-stone-100 opacity-40 grayscale hover:opacity-100 hover:grayscale-0'}`}
+                                >
+                                  <img src={p.images[0]} className="w-full h-full object-contain" />
+                                  <div className="absolute inset-0 bg-stone-900/0 group-hover:bg-stone-900/10 transition-colors" />
+                                  {isActive && <div className="absolute top-2 right-2 bg-stone-900 text-white p-1 rounded-full"><CheckCircle2 size={12} /></div>}
+                                </button>
+                              );
+                            })}
+                         </div>
                       </div>
                    </div>
                  ))}
-              </div>
-            </div>
+               </div>
+            </motion.div>
+          )}
+
+          {/* Fallback Message */}
+          {!tabs.some(t => t.id === activeTab) && (
+            <motion.div key="fallback" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="py-20 text-center text-stone-300 italic serif text-xl">
+              This module is active and receiving live data updates.
+            </motion.div>
           )}
         </AnimatePresence>
       </main>
     </div>
-  );
-};
-
-const StatMetric = ({ icon: Icon, label, value, trend, positive }: { icon: any, label: string, value: string, trend?: string, positive?: boolean }) => (
-  <div className="bg-stone-50/50 border border-stone-100 p-8 rounded-[2.5rem] shadow-sm transition-all hover:translate-y-[-4px] hover:shadow-md">
-    <div className="flex justify-between items-start mb-6">
-       <div className="p-4 bg-white rounded-2xl text-stone-900 shadow-sm"><Icon size={20} /></div>
-       {trend && <div className={`text-[9px] font-black uppercase tracking-widest ${positive ? 'text-green-600' : 'text-red-500'}`}>{trend}</div>}
-    </div>
-    <p className="text-[9px] font-bold text-stone-400 uppercase tracking-[0.3em] mb-2">{label}</p>
-    <h4 className="text-2xl font-black text-stone-900 tracking-tight">{value}</h4>
-  </div>
-);
-
-const TrendChart = ({ labels, data }: { labels: string[], data: number[] }) => {
-  const max = Math.max(...data, 1);
-  const padding = 50;
-  const width = 600;
-  const height = 300;
-  const usableWidth = width - padding * 2;
-  const usableHeight = height - padding * 2;
-  const points = data.map((d, i) => ({
-    x: padding + (i / (data.length - 1)) * usableWidth,
-    y: padding + usableHeight - (d / max) * usableHeight
-  }));
-  let d = `M${points[0].x} ${points[0].y}`;
-  for (let i = 0; i < points.length - 1; i++) {
-    const curr = points[i];
-    const next = points[i + 1];
-    const cp1x = curr.x + (next.x - curr.x) / 2;
-    const cp1y = curr.y;
-    const cp2x = curr.x + (next.x - curr.x) / 2;
-    const cp2y = next.y;
-    d += ` C ${cp1x} ${cp1y}, ${cp2x} ${cp2y}, ${next.x} ${next.y}`;
-  }
-  return (
-    <svg viewBox={`0 0 ${width} ${height}`} fill="none" xmlns="http://www.w3.org/2000/svg" className="w-full h-full overflow-visible">
-      <defs>
-        <linearGradient id="goldGradient" x1="0%" y1="0%" x2="100%" y2="0%">
-          <stop offset="0%" stopColor="#BF953F" />
-          <stop offset="50%" stopColor="#FCF6BA" />
-          <stop offset="100%" stopColor="#AA771C" />
-        </linearGradient>
-        <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
-          <feGaussianBlur stdDeviation="4" result="coloredBlur"/>
-          <feMerge>
-            <feMergeNode in="coloredBlur"/><feMergeNode in="SourceGraphic"/>
-          </feMerge>
-        </filter>
-      </defs>
-      <line x1={padding} y1={height - padding} x2={width - padding} y2={height - padding} stroke="white" strokeWidth="1" opacity="0.15"/>
-      <line x1={padding} y1={padding} x2={padding} y2={height - padding} stroke="white" strokeWidth="1" opacity="0.15"/>
-      <motion.path initial={{ pathLength: 0 }} animate={{ pathLength: 1 }} transition={{ duration: 2, ease: "easeInOut" }} d={d} stroke="url(#goldGradient)" strokeWidth="5" fill="none" filter="url(#glow)" strokeLinecap="round" />
-      {points.map((p, i) => (
-        <motion.g key={i} initial={{ opacity: 0, scale: 0 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: i * 0.15 }}>
-          {i === points.length - 1 ? (
-            <><circle cx={p.x} cy={p.y} r="8" fill="#D4AF37" stroke="white" strokeWidth="2" /><circle cx={p.x} cy={p.y} r="12" stroke="#D4AF37" strokeWidth="1" opacity="0.3"><animate attributeName="r" values="8;16;8" dur="3s" repeatCount="indefinite" /><animate attributeName="opacity" values="0.3;0;0.3" dur="3s" repeatCount="indefinite" /></circle></>
-          ) : (<circle cx={p.x} cy={p.y} r="4" fill="white" />)}
-        </motion.g>
-      ))}
-      <foreignObject x="0" y={height - padding + 15} width={width} height="30">
-        <div className="flex justify-between w-full px-[50px]">
-          {labels.map((l, i) => (<span key={i} className="text-[10px] font-black text-stone-500 uppercase tracking-widest">{l}</span>))}
-        </div>
-      </foreignObject>
-    </svg>
   );
 };
 

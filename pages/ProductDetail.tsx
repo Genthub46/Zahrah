@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState, useMemo, useCallback } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { Product, RestockRequest } from '../types';
@@ -8,6 +9,38 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import ProductCard from '../components/ProductCard';
+
+// Moved Accordion above ProductDetail to fix "children is missing" type error and scope issues
+interface AccordionProps {
+  title: string;
+  children: React.ReactNode;
+  isOpen: boolean;
+  onToggle: () => void;
+}
+
+const Accordion: React.FC<AccordionProps> = ({ title, children, isOpen, onToggle }) => (
+  <div className="border-b border-stone-100">
+    <button 
+      onClick={onToggle}
+      className="w-full py-6 flex justify-between items-center group"
+    >
+      <span className="text-xl font-bold tracking-tight text-stone-900 serif">{title}</span>
+      {isOpen ? <ChevronUp className="text-stone-400 group-hover:text-stone-900 transition-colors" /> : <ChevronDown className="text-stone-400 group-hover:text-stone-900 transition-colors" />}
+    </button>
+    <AnimatePresence>
+      {isOpen && (
+        <motion.div 
+          initial={{ height: 0, opacity: 0 }}
+          animate={{ height: 'auto', opacity: 1 }}
+          exit={{ height: 0, opacity: 0 }}
+          className="overflow-hidden pb-8"
+        >
+          {children}
+        </motion.div>
+      )}
+    </AnimatePresence>
+  </div>
+);
 
 interface ProductDetailProps {
   products: Product[];
@@ -443,29 +476,5 @@ const ProductDetail: React.FC<ProductDetailProps> = ({
     </div>
   );
 };
-
-const Accordion = ({ title, children, isOpen, onToggle }: { title: string; children: React.ReactNode; isOpen: boolean; onToggle: () => void }) => (
-  <div className="border-b border-stone-100">
-    <button 
-      onClick={onToggle}
-      className="w-full py-6 flex justify-between items-center group"
-    >
-      <span className="text-xl font-bold tracking-tight text-stone-900 serif">{title}</span>
-      {isOpen ? <ChevronUp className="text-stone-400 group-hover:text-stone-900 transition-colors" /> : <ChevronDown className="text-stone-400 group-hover:text-stone-900 transition-colors" />}
-    </button>
-    <AnimatePresence>
-      {isOpen && (
-        <motion.div 
-          initial={{ height: 0, opacity: 0 }}
-          animate={{ height: 'auto', opacity: 1 }}
-          exit={{ height: 0, opacity: 0 }}
-          className="overflow-hidden pb-8"
-        >
-          {children}
-        </motion.div>
-      )}
-    </AnimatePresence>
-  </div>
-);
 
 export default ProductDetail;
