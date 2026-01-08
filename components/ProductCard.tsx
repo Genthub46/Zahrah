@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Product } from '../types';
 import { useNavigate } from 'react-router-dom';
@@ -66,9 +65,28 @@ const ProductCard: React.FC<ProductCardProps> = ({
           <span className="w-1 h-1 bg-stone-300 rounded-full" />
           <span className="text-[8px] font-bold text-stone-400 uppercase tracking-widest">{product.category}</span>
         </div>
+        
         <h3 className="text-sm font-bold text-stone-900 leading-tight tracking-tight">
           {product.name}
         </h3>
+
+        {/* Color Swatches - Reflectable on the Card */}
+        {product.colors && product.colors.length > 0 && (
+          <div className="flex space-x-1.5 py-1">
+            {product.colors.slice(0, 5).map((c, i) => (
+              <div 
+                key={i} 
+                className="w-2.5 h-2.5 rounded-full border border-stone-200 shadow-sm" 
+                style={{ backgroundColor: c.hex }} 
+                title={c.name}
+              />
+            ))}
+            {product.colors.length > 5 && (
+              <span className="text-[8px] text-stone-400 font-bold">+{product.colors.length - 5}</span>
+            )}
+          </div>
+        )}
+
         <p className="text-sm font-bold text-stone-900">
           N{product.price.toLocaleString()}
         </p>

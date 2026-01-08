@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { HashRouter as Router, Routes, Route } from 'react-router-dom';
-import { Product, CartItem, Order, ViewLog, RestockRequest } from './types';
+import { Product, CartItem, Order, ViewLog, RestockRequest, HomeLayoutConfig, SectionConfig, FooterPage } from './types';
 import { 
   APP_STORAGE_KEY, 
   PRODUCTS_STORAGE_KEY, 
@@ -9,7 +9,9 @@ import {
   ANALYTICS_STORAGE_KEY, 
   RESTOCK_REQUESTS_STORAGE_KEY, 
   WISHLIST_STORAGE_KEY,
-  INITIAL_PRODUCTS 
+  INITIAL_PRODUCTS,
+  FOOTER_PAGES_STORAGE_KEY,
+  INITIAL_FOOTER_PAGES
 } from './constants';
 import Navbar from './components/Navbar';
 import Home from './pages/Home';
@@ -17,12 +19,36 @@ import Checkout from './pages/Checkout';
 import Admin from './pages/Admin';
 import ProductDetail from './pages/ProductDetail';
 import Wishlist from './pages/Wishlist';
+import InfoPage from './pages/InfoPage';
 import WhatsAppBot from './components/WhatsAppBot';
+
+const LAYOUT_CONFIG_KEY = 'ZARHRAH_LAYOUT_CONFIG';
 
 const App: React.FC = () => {
   const [products, setProducts] = useState<Product[]>(() => {
     const saved = localStorage.getItem(PRODUCTS_STORAGE_KEY);
     return saved ? JSON.parse(saved) : INITIAL_PRODUCTS;
+  });
+
+  const [footerPages, setFooterPages] = useState<FooterPage[]>(() => {
+    const saved = localStorage.getItem(FOOTER_PAGES_STORAGE_KEY);
+    return saved ? JSON.parse(saved) : INITIAL_FOOTER_PAGES;
+  });
+
+  const [layoutConfig, setLayoutConfig] = useState<HomeLayoutConfig>(() => {
+    const saved = localStorage.getItem(LAYOUT_CONFIG_KEY);
+    if (saved) return JSON.parse(saved);
+    
+    const bundleIds = INITIAL_PRODUCTS.filter(p => p.tags.includes('bundle')).map(p => p.id);
+    const newIds = INITIAL_PRODUCTS.filter(p => p.tags.includes('new')).map(p => p.id);
+
+    return {
+      sections: [
+        { id: 'sec-bundles', title: 'Bundles Deals', type: 'carousel', productIds: bundleIds, isVisible: true },
+        { id: 'sec-new', title: 'New Arrivals', type: 'carousel', productIds: newIds, isVisible: true }
+      ],
+      showCatalog: true
+    };
   });
 
   const [orders, setOrders] = useState<Order[]>(() => {
@@ -57,6 +83,14 @@ const App: React.FC = () => {
   useEffect(() => {
     localStorage.setItem(PRODUCTS_STORAGE_KEY, JSON.stringify(products));
   }, [products]);
+
+  useEffect(() => {
+    localStorage.setItem(FOOTER_PAGES_STORAGE_KEY, JSON.stringify(footerPages));
+  }, [footerPages]);
+
+  useEffect(() => {
+    localStorage.setItem(LAYOUT_CONFIG_KEY, JSON.stringify(layoutConfig));
+  }, [layoutConfig]);
 
   useEffect(() => {
     localStorage.setItem(ORDERS_STORAGE_KEY, JSON.stringify(orders));
@@ -139,8 +173,9 @@ const App: React.FC = () => {
         
         <main className="flex-grow w-full">
           <Routes>
-            <Route path="/" element={<Home products={products} onAddToCart={addToCart} onLogView={logView} onToggleWishlist={toggleWishlist} wishlist={wishlist} />} />
+            <Route path="/" element={<Home products={products} setProducts={setProducts} layoutConfig={layoutConfig} footerPages={footerPages} onAddToCart={addToCart} onLogView={logView} onToggleWishlist={toggleWishlist} wishlist={wishlist} />} />
             <Route path="/wishlist" element={<Wishlist wishlist={wishlist} onToggleWishlist={toggleWishlist} onAddToCart={addToCart} />} />
+            <Route path="/p/:slug" element={<InfoPage footerPages={footerPages} />} />
             <Route 
               path="/product/:id" 
               element={
@@ -173,6 +208,10 @@ const App: React.FC = () => {
                   orders={orders} 
                   viewLogs={viewLogs}
                   restockRequests={restockRequests}
+                  layoutConfig={layoutConfig}
+                  footerPages={footerPages}
+                  setLayoutConfig={setLayoutConfig}
+                  setFooterPages={setFooterPages}
                   setProducts={setProducts} 
                   setOrders={setOrders}
                   setRestockRequests={setRestockRequests}

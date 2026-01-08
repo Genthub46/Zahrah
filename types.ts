@@ -9,7 +9,6 @@ export interface Product {
   category: 'Apparel' | 'Footwear' | 'Accessories' | 'Beauty' | 'Travel' | 'Watches' | 'Perfumes' | 'Bags';
   stock: number;
   tags: string[];
-  // New Luxury Fields
   colors?: { name: string; hex: string }[];
   sizes?: string[];
   features?: string[];
@@ -55,7 +54,22 @@ export interface ViewLog {
   timestamp: number;
 }
 
-export interface StyleAdvice {
-  advice: string;
-  suggestedColors: string[];
+export interface SectionConfig {
+  id: string;
+  title: string;
+  type: 'carousel' | 'grid';
+  productIds: string[];
+  isVisible: boolean;
+}
+
+export interface HomeLayoutConfig {
+  sections: SectionConfig[];
+  showCatalog: boolean;
+}
+
+export interface FooterPage {
+  slug: string;
+  title: string;
+  content: string;
+  category: 'Customer Services' | 'Company' | 'Categories' | 'Policies';
 }
