@@ -7,10 +7,10 @@ import {
   Mail, Bell, Truck, Globe, Award, Sparkles, Send,
   Plus, Minus, Heart, ChevronDown, ChevronUp, X, ChevronLeft, ChevronRight, Maximize2, AlertCircle
 } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence, useMotionValue, useTransform } from 'framer-motion';
 import ProductCard from '../components/ProductCard';
 
-// Moved Accordion above ProductDetail to fix "children is missing" type error and scope issues
+// Accordion Component for Product Information
 interface AccordionProps {
   title: string;
   children: React.ReactNode;
@@ -70,20 +70,21 @@ const ProductDetail: React.FC<ProductDetailProps> = ({
   const [restockEmail, setRestockEmail] = useState('');
   const [isRestockSubmitted, setIsRestockSubmitted] = useState(false);
   
-  // Lightbox State
+  // Lightbox & Gesture State
   const [isLightboxOpen, setIsLightboxOpen] = useState(false);
+  const dragX = useMotionValue(0);
 
   const product = useMemo(() => products.find(p => p.id === id), [products, id]);
   const isSoldOut = product ? product.stock <= 0 : false;
   const isWishlisted = product ? wishlist.some(p => p.id === product.id) : false;
 
-  // Selection Logic
   const needsColor = product?.colors && product.colors.length > 0;
   const needsSize = product?.sizes && product.sizes.length > 0;
   const isSelectionComplete = (!needsColor || selectedColor) && (!needsSize || selectedSize);
 
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: 'instant' });
+    setActiveImgIdx(0); // Reset index on product change
   }, [id]);
 
   useEffect(() => {
@@ -92,30 +93,33 @@ const ProductDetail: React.FC<ProductDetailProps> = ({
     }
   }, [id, product, onLogView]);
 
-  const handleNextImage = useCallback((e?: React.MouseEvent) => {
-    e?.stopPropagation();
+  const handleNextImage = useCallback(() => {
     if (product) {
       setActiveImgIdx((prev) => (prev + 1) % product.images.length);
     }
   }, [product]);
 
-  const handlePrevImage = useCallback((e?: React.MouseEvent) => {
-    e?.stopPropagation();
+  const handlePrevImage = useCallback(() => {
     if (product) {
       setActiveImgIdx((prev) => (prev - 1 + product.images.length) % product.images.length);
     }
   }, [product]);
 
+  const onDragEnd = () => {
+    const x = dragX.get();
+    if (x <= -50) {
+      handleNextImage();
+    } else if (x >= 50) {
+      handlePrevImage();
+    }
+    dragX.set(0);
+  };
+
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (isLightboxOpen) {
-        if (e.key === 'Escape') setIsLightboxOpen(false);
-        if (e.key === 'ArrowRight') handleNextImage();
-        if (e.key === 'ArrowLeft') handlePrevImage();
-      } else {
-        if (e.key === 'ArrowRight') handleNextImage();
-        if (e.key === 'ArrowLeft') handlePrevImage();
-      }
+      if (e.key === 'ArrowRight') handleNextImage();
+      if (e.key === 'ArrowLeft') handlePrevImage();
+      if (isLightboxOpen && e.key === 'Escape') setIsLightboxOpen(false);
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
@@ -133,132 +137,142 @@ const ProductDetail: React.FC<ProductDetailProps> = ({
     .filter(p => p.id !== product.id && p.brand === product.brand)
     .slice(0, 4);
 
-  const toggleSection = (section: string) => {
-    setActiveSection(activeSection === section ? null : section);
-  };
-
   return (
     <div className="pt-24 pb-24 bg-white min-h-screen">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="grid lg:grid-cols-12 gap-12 lg:gap-20 mt-8">
+        {/* Breadcrumb / Back */}
+        <div className="mb-12">
+          <Link to="/" className="inline-flex items-center space-x-2 text-[10px] font-black uppercase tracking-[0.4em] text-stone-400 hover:text-stone-900 transition-colors">
+            <ArrowLeft size={12} />
+            <span>Return to Boutique</span>
+          </Link>
+        </div>
+
+        <div className="grid lg:grid-cols-12 gap-12 lg:gap-20">
           {/* Gallery Sidebar - Desktop only */}
-          <div className="lg:col-span-1 hidden lg:flex flex-col space-y-4">
+          <div className="lg:col-span-1 hidden lg:flex flex-col space-y-4 max-h-[80vh] overflow-y-auto no-scrollbar py-2 pr-2">
             {product.images.map((img, idx) => (
               <button 
                 key={idx}
                 onClick={() => setActiveImgIdx(idx)}
-                className={`w-full aspect-[3/4] rounded-lg overflow-hidden border-2 transition-all p-1 bg-stone-50 ${activeImgIdx === idx ? 'border-stone-900' : 'border-transparent opacity-60'}`}
+                className={`w-full aspect-[3/4] rounded-xl overflow-hidden border-2 transition-all p-1 bg-stone-50 flex-shrink-0 ${activeImgIdx === idx ? 'border-[#C5A059] shadow-md scale-105' : 'border-transparent opacity-40 hover:opacity-80'}`}
               >
-                <img src={img} className="w-full h-full object-contain" alt="" />
+                <img src={img} className="w-full h-full object-contain" alt={`Thumbnail ${idx}`} />
               </button>
             ))}
           </div>
 
-          {/* Main Carousel Area */}
-          <div className="lg:col-span-6 space-y-6">
+          {/* Main Visual Display Area */}
+          <div className="lg:col-span-6 space-y-8">
             <div className="relative group">
               <motion.div 
-                layoutId={`product-img-${product.id}`}
+                drag="x"
+                dragConstraints={{ left: 0, right: 0 }}
+                style={{ x: dragX }}
+                onDragEnd={onDragEnd}
                 onClick={() => setIsLightboxOpen(true)}
-                className="aspect-[4/5] bg-stone-100 rounded-[2rem] md:rounded-[3rem] overflow-hidden flex items-center justify-center p-8 cursor-zoom-in relative"
+                className="aspect-[4/5] bg-stone-50 rounded-[2.5rem] md:rounded-[4rem] overflow-hidden flex items-center justify-center p-8 cursor-zoom-in relative select-none touch-pan-y"
               >
                 <AnimatePresence mode="wait">
                   <motion.img 
                     key={activeImgIdx}
-                    initial={{ opacity: 0, x: 20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    exit={{ opacity: 0, x: -20 }}
-                    transition={{ duration: 0.4, ease: "easeInOut" }}
+                    initial={{ opacity: 0, scale: 0.95 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0, scale: 1.05 }}
+                    transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
                     src={product.images[activeImgIdx]} 
                     alt={product.name} 
-                    className={`max-h-full max-w-full object-contain transition-transform duration-700 group-hover:scale-105 ${isSoldOut ? 'grayscale' : ''}`}
+                    className={`max-h-full max-w-full object-contain pointer-events-none ${isSoldOut ? 'grayscale' : ''}`}
                   />
                 </AnimatePresence>
                 
-                {/* Overlay with Maximize icon */}
+                {/* Visual Feedback Overlays */}
                 <div className="absolute inset-0 bg-black/0 group-hover:bg-black/5 transition-colors flex items-center justify-center pointer-events-none">
-                  <Maximize2 size={32} className="text-white opacity-0 group-hover:opacity-100 transition-opacity drop-shadow-lg" />
+                  <Maximize2 size={32} className="text-white opacity-0 group-hover:opacity-100 transition-opacity drop-shadow-xl" />
                 </div>
 
-                {/* Navigation Arrows */}
+                {/* Progress Indicator (Badge) */}
+                <div className="absolute bottom-8 right-10 px-4 py-1.5 bg-white/60 backdrop-blur-md rounded-full border border-white/40 text-[9px] font-black tracking-widest text-stone-900 shadow-sm">
+                  {String(activeImgIdx + 1).padStart(2, '0')} / {String(product.images.length).padStart(2, '0')}
+                </div>
+
+                {/* Navigation Arrows (Desktop Only) */}
                 {product.images.length > 1 && (
                   <>
                     <button 
                       onClick={(e) => { e.stopPropagation(); handlePrevImage(); }}
-                      className="absolute left-6 top-1/2 -translate-y-1/2 p-3 bg-white/80 backdrop-blur-md rounded-full shadow-lg text-stone-900 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-white"
+                      className="absolute left-8 top-1/2 -translate-y-1/2 p-4 bg-white/90 backdrop-blur-lg rounded-full shadow-2xl text-stone-900 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-white hidden lg:block"
                     >
-                      <ChevronLeft size={20} />
+                      <ChevronLeft size={24} />
                     </button>
                     <button 
                       onClick={(e) => { e.stopPropagation(); handleNextImage(); }}
-                      className="absolute right-6 top-1/2 -translate-y-1/2 p-3 bg-white/80 backdrop-blur-md rounded-full shadow-lg text-stone-900 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-white"
+                      className="absolute right-8 top-1/2 -translate-y-1/2 p-4 bg-white/90 backdrop-blur-lg rounded-full shadow-2xl text-stone-900 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-white hidden lg:block"
                     >
-                      <ChevronRight size={20} />
+                      <ChevronRight size={24} />
                     </button>
                   </>
                 )}
               </motion.div>
 
-              {/* Sold Out Badge */}
               {isSoldOut && (
-                <div className="absolute top-8 left-8">
-                  <span className="bg-red-500 text-white px-5 py-2 text-[10px] font-black tracking-widest uppercase rounded-full shadow-2xl">Sold Out</span>
+                <div className="absolute top-10 left-10">
+                  <span className="bg-stone-900 text-white px-6 py-2.5 text-[10px] font-black tracking-widest uppercase rounded-full shadow-2xl border border-white/20">Sold Out</span>
                 </div>
               )}
             </div>
 
-            {/* Pagination Dots */}
+            {/* Pagination / Filmstrip Dots */}
             {product.images.length > 1 && (
-              <div className="flex justify-center items-center space-x-3">
+              <div className="flex justify-center items-center space-x-3 md:hidden">
                 {product.images.map((_, idx) => (
                   <button
                     key={idx}
                     onClick={() => setActiveImgIdx(idx)}
-                    className={`h-1.5 rounded-full transition-all duration-300 ${activeImgIdx === idx ? 'w-8 bg-stone-900' : 'w-2 bg-stone-200 hover:bg-stone-300'}`}
+                    className={`h-1.5 rounded-full transition-all duration-500 ${activeImgIdx === idx ? 'w-10 bg-[#C5A059]' : 'w-2 bg-stone-200 hover:bg-stone-300'}`}
                   />
                 ))}
               </div>
             )}
+            
+            <p className="text-center text-[9px] font-bold text-stone-400 uppercase tracking-widest md:hidden">Swipe to browse artifacts</p>
           </div>
 
-          {/* Product Info */}
+          {/* Product Commercial Area */}
           <div className="lg:col-span-5 space-y-8">
             <div className="space-y-4">
               <div className="flex items-center space-x-3">
-                <span className="text-[10px] font-black gold-text uppercase tracking-[0.4em]">{product.brand}</span>
+                <span className="text-[10px] font-black gold-text uppercase tracking-[0.5em]">{product.brand}</span>
                 <span className="w-1 h-1 bg-stone-300 rounded-full" />
-                <span className="text-[10px] text-stone-400 font-bold uppercase tracking-widest">{product.category}</span>
+                <span className="text-[10px] text-stone-400 font-bold uppercase tracking-[0.3em]">{product.category}</span>
               </div>
-              <h1 className="text-4xl md:text-5xl font-bold tracking-tight text-stone-900 leading-tight serif">
+              <h1 className="text-4xl md:text-6xl font-bold tracking-tight text-stone-900 leading-[1.1] serif italic">
                 {product.name}
               </h1>
-              <p className="text-2xl font-bold text-stone-900">
-                N{product.price.toLocaleString()}
-              </p>
+              <div className="flex items-baseline space-x-3">
+                <p className="text-3xl font-black text-stone-900">
+                  ₦{product.price.toLocaleString()}
+                </p>
+                <span className="text-[10px] text-stone-400 font-bold uppercase tracking-widest">Global Sourcing • London VAT Incl.</span>
+              </div>
             </div>
 
-            {/* Attributes Selection */}
-            <div className="space-y-8 py-6 border-t border-stone-100">
+            {/* Selections */}
+            <div className="space-y-10 py-10 border-y border-stone-50">
               {needsColor && (
-                <div className="space-y-4">
-                  <span className={`text-[10px] font-bold uppercase tracking-widest block transition-colors ${!selectedColor ? 'text-[#C5A059]' : 'text-stone-400'}`}>
-                    Select Colour {!selectedColor && <span className="ml-2 lowercase font-light italic">(Required)</span>}
-                  </span>
-                  <div className="flex flex-wrap gap-3">
+                <div className="space-y-5">
+                  <div className="flex justify-between items-center">
+                    <span className="text-[10px] font-black uppercase tracking-widest text-stone-400">Artifact Colour Palette</span>
+                    {selectedColor && <span className="text-[9px] font-black gold-text uppercase tracking-widest">{selectedColor}</span>}
+                  </div>
+                  <div className="flex flex-wrap gap-4">
                     {product.colors?.map((c) => (
                       <button 
                         key={c.name}
                         onClick={() => setSelectedColor(c.name)}
-                        className={`group relative flex flex-col items-center space-y-2`}
+                        className={`w-12 h-12 rounded-full border-2 p-1 transition-all flex items-center justify-center ${selectedColor === c.name ? 'border-stone-900 scale-110 shadow-lg' : 'border-transparent hover:border-stone-100'}`}
                       >
-                        <div 
-                          className={`w-10 h-10 rounded-full border-2 p-0.5 transition-all ${selectedColor === c.name ? 'border-stone-900 scale-110 shadow-lg' : 'border-stone-100 hover:border-stone-300'}`}
-                        >
-                          <div className="w-full h-full rounded-full border border-stone-200" style={{ backgroundColor: c.hex }} />
-                        </div>
-                        <span className={`text-[8px] font-bold uppercase tracking-widest ${selectedColor === c.name ? 'text-stone-900' : 'text-stone-400'}`}>
-                          {c.name}
-                        </span>
+                        <div className="w-full h-full rounded-full border border-stone-100" style={{ backgroundColor: c.hex }} title={c.name} />
                       </button>
                     ))}
                   </div>
@@ -266,19 +280,17 @@ const ProductDetail: React.FC<ProductDetailProps> = ({
               )}
 
               {needsSize && (
-                <div className="space-y-4">
+                <div className="space-y-5">
                   <div className="flex justify-between items-center">
-                    <span className={`text-[10px] font-bold uppercase tracking-widest transition-colors ${!selectedSize ? 'text-[#C5A059]' : 'text-stone-400'}`}>
-                      Select Size {!selectedSize && <span className="ml-2 lowercase font-light italic">(Required)</span>}
-                    </span>
-                    <button className="text-[10px] font-bold text-stone-900 border-b border-stone-900 uppercase tracking-widest">Size Chart</button>
+                    <span className="text-[10px] font-black uppercase tracking-widest text-stone-400">Dimensions / Sizing</span>
+                    <button className="text-[9px] font-black text-[#C5A059] border-b border-[#C5A059] uppercase tracking-widest">Sizing Guide</button>
                   </div>
-                  <div className="flex flex-wrap gap-2">
+                  <div className="grid grid-cols-4 gap-3">
                     {product.sizes?.map((s) => (
                       <button 
                         key={s}
                         onClick={() => setSelectedSize(s)}
-                        className={`px-6 py-3 text-[10px] font-bold uppercase tracking-widest border-2 transition-all rounded-sm ${selectedSize === s ? 'border-stone-900 bg-stone-900 text-white shadow-xl' : 'border-stone-100 text-stone-400 hover:border-stone-400'}`}
+                        className={`py-4 text-[10px] font-black uppercase tracking-widest border-2 transition-all rounded-2xl ${selectedSize === s ? 'border-stone-900 bg-stone-900 text-white shadow-xl' : 'border-stone-100 text-stone-400 hover:border-stone-300'}`}
                       >
                         {s}
                       </button>
@@ -288,110 +300,83 @@ const ProductDetail: React.FC<ProductDetailProps> = ({
               )}
             </div>
 
-            {/* Quantity & Actions */}
-            <div className="flex flex-col space-y-4">
-              <div className="grid grid-cols-12 gap-4">
-                <div className="col-span-4 flex items-center justify-between border-2 border-stone-100 px-4 py-4 rounded-sm">
-                  <button onClick={() => setQuantity(q => Math.max(1, q - 1))} className="text-stone-400 hover:text-stone-900"><Minus size={16} /></button>
-                  <span className="text-sm font-bold">{quantity}</span>
-                  <button onClick={() => setQuantity(q => q + 1)} className="text-stone-400 hover:text-stone-900"><Plus size={16} /></button>
+            {/* Interaction Suite */}
+            <div className="space-y-6 pt-4">
+              <div className="flex items-center space-x-6">
+                <div className="flex items-center justify-between bg-stone-50 border border-stone-100 p-4 rounded-2xl w-40">
+                  <button onClick={() => setQuantity(q => Math.max(1, q - 1))} className="text-stone-400 hover:text-stone-900 p-2"><Minus size={16} /></button>
+                  <span className="text-sm font-black text-stone-900">{quantity}</span>
+                  <button onClick={() => setQuantity(q => q + 1)} className="text-stone-400 hover:text-stone-900 p-2"><Plus size={16} /></button>
                 </div>
+                
                 <button 
                   onClick={() => !isSoldOut && isSelectionComplete && onAddToCart(product, quantity, selectedColor, selectedSize)}
                   disabled={isSoldOut || !isSelectionComplete}
-                  className={`col-span-8 py-4 text-[11px] font-bold tracking-[0.2em] uppercase rounded-sm shadow-sm transition-all flex items-center justify-center space-x-3 ${isSoldOut ? 'bg-stone-100 text-stone-400 cursor-not-allowed' : isSelectionComplete ? 'bg-stone-900 text-white hover:bg-stone-800' : 'bg-stone-50 text-stone-400 border border-stone-200 cursor-not-allowed'}`}
+                  className={`flex-1 py-6 text-[11px] font-black tracking-[0.4em] uppercase rounded-2xl shadow-xl transition-all flex items-center justify-center space-x-4 ${isSoldOut ? 'bg-stone-100 text-stone-300 cursor-not-allowed' : isSelectionComplete ? 'bg-stone-900 text-white hover:scale-[1.02] active:scale-95' : 'bg-stone-50 text-stone-400 border border-stone-100 cursor-not-allowed'}`}
                 >
-                  {!isSelectionComplete && !isSoldOut && <AlertCircle size={14} className="gold-text" />}
-                  {isSoldOut ? <Ban size={18} /> : <ShoppingBag size={18} />}
-                  <span>
-                    {isSoldOut ? 'Out of Stock' : !isSelectionComplete ? 'Complete Selection' : 'Add to Cart'}
-                  </span>
+                  <ShoppingBag size={18} />
+                  <span>{isSoldOut ? 'Archive Full' : 'Acquire Artifact'}</span>
                 </button>
               </div>
 
               <div className="flex space-x-4">
                 <button 
                   onClick={() => onToggleWishlist(product)}
-                  className={`flex-1 flex items-center justify-center space-x-3 py-4 border-2 rounded-sm text-[10px] font-bold uppercase tracking-widest transition-all ${isWishlisted ? 'border-red-500 bg-red-50 text-red-500' : 'border-stone-200 text-stone-900 hover:border-stone-400'}`}
+                  className={`flex-1 py-5 border-2 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center space-x-3 ${isWishlisted ? 'border-red-500 bg-red-50 text-red-500 shadow-lg' : 'border-stone-100 text-stone-900 hover:bg-stone-50'}`}
                 >
                   <Heart size={16} fill={isWishlisted ? "currentColor" : "none"} />
                   <span>{isWishlisted ? 'In Wishlist' : 'Add to Wishlist'}</span>
                 </button>
                 <button 
                   onClick={handleShare}
-                  className="flex-1 flex items-center justify-center space-x-3 py-4 border-2 border-stone-200 rounded-sm text-[10px] font-bold uppercase tracking-widest hover:border-stone-400 transition-all"
+                  className="px-8 py-5 border-2 border-stone-100 rounded-2xl text-stone-900 hover:bg-stone-50 transition-all"
                 >
-                  {copied ? <Check size={16} className="text-green-600" /> : <Share2 size={16} />}
-                  <span>Share</span>
+                  {copied ? <Check size={18} className="text-green-600" /> : <Share2 size={18} />}
                 </button>
               </div>
             </div>
 
-            {/* Waitlist for Sold Out */}
-            {isSoldOut && (
-               <div className="bg-stone-50 p-8 rounded-2xl border border-stone-100 mt-8">
-                <h4 className="text-[10px] font-bold tracking-widest uppercase mb-4 flex items-center text-stone-900">
-                  <Bell size={16} className="mr-3" /> Join the Boutique Waitlist
-                </h4>
-                <AnimatePresence mode="wait">
-                  {!isRestockSubmitted ? (
-                    <motion.form 
-                      initial={{ opacity: 0 }} animate={{ opacity: 1 }}
-                      onSubmit={(e) => {
-                        e.preventDefault();
-                        onAddRestockRequest({ id: Date.now().toString(), productId: product.id, customerEmail: restockEmail, date: new Date().toISOString() });
-                        setIsRestockSubmitted(true);
-                      }} 
-                      className="space-y-3"
-                    >
-                      <input 
-                        type="email" required placeholder="EMAIL ADDRESS" value={restockEmail} onChange={(e) => setRestockEmail(e.target.value)}
-                        className="w-full px-4 py-3 bg-white border border-stone-200 text-[10px] font-bold tracking-widest uppercase rounded-lg focus:outline-none focus:ring-1 focus:ring-stone-900"
-                      />
-                      <button className="w-full bg-stone-900 text-white py-3 text-[10px] font-bold tracking-widest uppercase rounded-lg hover:bg-stone-800 transition-all">Notify Me</button>
-                    </motion.form>
-                  ) : (
-                    <motion.p initial={{ scale: 0.9 }} animate={{ scale: 1 }} className="text-[10px] font-bold text-green-700 uppercase">You've been added to the waitlist.</motion.p>
-                  )}
-                </AnimatePresence>
-               </div>
-            )}
-
-            {/* Accordion Sections */}
-            <div className="pt-10 space-y-0 border-t border-stone-100">
+            {/* Accordion Suite */}
+            <div className="pt-10 space-y-0">
               <Accordion 
-                title="Product Description" 
+                title="Sourcing & Authenticity" 
                 isOpen={activeSection === 'description'} 
-                onToggle={() => toggleSection('description')}
+                onToggle={() => setActiveSection(activeSection === 'description' ? null : 'description')}
               >
                 <div className="space-y-6">
-                  <p className="text-stone-500 leading-relaxed font-light">{product.description}</p>
-                  
-                  {product.features && (
-                    <div className="space-y-4">
-                      <h4 className="text-[11px] font-bold text-stone-900 uppercase tracking-widest">Features</h4>
-                      <ul className="space-y-2">
-                        {product.features.map((f, i) => (
-                          <li key={i} className="text-stone-500 text-xs flex items-start">
-                            <span className="mr-2 text-stone-300">•</span> {f}
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  )}
+                  <p className="text-stone-500 leading-relaxed font-light text-[15px]">{product.description}</p>
+                  <div className="grid grid-cols-2 gap-8">
+                     <div className="space-y-4">
+                        <h4 className="text-[10px] font-black text-stone-900 uppercase tracking-widest flex items-center"><Sparkles size={12} className="mr-2 gold-text" /> Highlights</h4>
+                        <ul className="space-y-3">
+                          {product.features?.map((f, i) => (
+                            <li key={i} className="text-stone-400 text-xs flex items-start">
+                              <span className="mr-3 gold-text">•</span> {f}
+                            </li>
+                          ))}
+                        </ul>
+                     </div>
+                     <div className="space-y-4">
+                        <h4 className="text-[10px] font-black text-stone-900 uppercase tracking-widest flex items-center"><Truck size={12} className="mr-2 gold-text" /> Logistics</h4>
+                        <p className="text-stone-400 text-xs leading-relaxed">Global express delivery from our London or Lagos hubs. Standard delivery 2-5 business days.</p>
+                     </div>
+                  </div>
                 </div>
               </Accordion>
             </div>
           </div>
         </div>
 
-        {/* Recommended Grid */}
-        <section className="mt-32 pt-24 border-t border-stone-100">
+        {/* Similar Curations */}
+        <section className="mt-40 pt-24 border-t border-stone-50">
           <div className="flex justify-between items-end mb-16">
-             <h2 className="text-4xl font-bold tracking-tight text-stone-900 serif">Customers also viewed</h2>
-             <Link to="/" className="text-[10px] font-bold uppercase tracking-widest border-b border-stone-900 pb-2">View Catalog</Link>
+             <div>
+                <span className="text-[10px] font-black gold-text uppercase tracking-[0.6em] block mb-3">Discovery Suite</span>
+                <h2 className="text-4xl font-bold tracking-tight text-stone-900 serif italic">Curated Similarities</h2>
+             </div>
+             <Link to="/" className="text-[10px] font-black uppercase tracking-widest border-b-2 border-stone-900 pb-2">View Archive</Link>
           </div>
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-8">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-12">
             {relatedProducts.map(p => (
               <ProductCard key={p.id} product={p} onAddToCart={onAddToCart} onToggleWishlist={onToggleWishlist} isWishlisted={wishlist.some(wi => wi.id === p.id)} />
             ))}
@@ -399,75 +384,80 @@ const ProductDetail: React.FC<ProductDetailProps> = ({
         </section>
       </div>
 
-      {/* Luxury Lightbox */}
+      {/* Luxury Immersive Lightbox */}
       <AnimatePresence>
         {isLightboxOpen && (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[20000] bg-stone-900/95 backdrop-blur-xl flex items-center justify-center p-4 md:p-12 cursor-zoom-out"
+            className="fixed inset-0 z-[20000] bg-white/90 backdrop-blur-3xl flex items-center justify-center p-4 md:p-12"
             onClick={() => setIsLightboxOpen(false)}
           >
             <motion.div 
-              initial={{ scale: 0.9, opacity: 0 }}
+              initial={{ scale: 0.95, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.9, opacity: 0 }}
-              transition={{ type: "spring", damping: 25, stiffness: 200 }}
-              className="relative max-w-5xl w-full h-full flex items-center justify-center p-4 md:p-12"
+              exit={{ scale: 0.95, opacity: 0 }}
+              className="relative max-w-6xl w-full h-full flex flex-col items-center justify-center"
               onClick={(e) => e.stopPropagation()}
             >
-              {/* Close Button */}
-              <button 
-                onClick={() => setIsLightboxOpen(false)}
-                className="absolute top-0 right-0 md:-top-12 md:-right-12 p-4 text-stone-400 hover:text-white transition-colors"
-              >
-                <X size={40} strokeWidth={1} />
-              </button>
-
-              {/* Navigation Arrows */}
-              {product.images.length > 1 && (
-                <>
-                  <button 
-                    onClick={handlePrevImage}
-                    className="absolute left-0 p-4 text-stone-400 hover:text-white transition-colors hidden md:block"
-                  >
-                    <ChevronLeft size={64} strokeWidth={1} />
-                  </button>
-                  <button 
-                    onClick={handleNextImage}
-                    className="absolute right-0 p-4 text-stone-400 hover:text-white transition-colors hidden md:block"
-                  >
-                    <ChevronRight size={64} strokeWidth={1} />
-                  </button>
-                </>
-              )}
-
-              {/* Counter */}
-              <div className="absolute top-0 left-1/2 -translate-x-1/2 text-stone-500 font-bold text-[10px] uppercase tracking-[0.4em] mb-4">
-                {String(activeImgIdx + 1).padStart(2, '0')} / {String(product.images.length).padStart(2, '0')}
+              {/* Header UI */}
+              <div className="absolute top-0 left-0 right-0 flex justify-between items-center p-8">
+                 <div className="flex flex-col">
+                    <span className="text-[10px] font-black gold-text uppercase tracking-[0.5em]">{product.brand}</span>
+                    <h2 className="text-xl font-bold serif italic text-stone-900">{product.name}</h2>
+                 </div>
+                 <button 
+                  onClick={() => setIsLightboxOpen(false)}
+                  className="p-4 bg-stone-900 text-white rounded-full shadow-2xl hover:scale-110 transition-transform"
+                >
+                  <X size={24} />
+                </button>
               </div>
 
-              {/* Image Container */}
-              <div className="w-full h-full flex items-center justify-center pointer-events-none">
+              {/* Interaction UI */}
+              <div className="absolute top-1/2 left-8 -translate-y-1/2 hidden md:block">
+                 <button onClick={handlePrevImage} className="p-6 text-stone-300 hover:text-stone-900 transition-colors"><ChevronLeft size={48} strokeWidth={1} /></button>
+              </div>
+              <div className="absolute top-1/2 right-8 -translate-y-1/2 hidden md:block">
+                 <button onClick={handleNextImage} className="p-6 text-stone-300 hover:text-stone-900 transition-colors"><ChevronRight size={48} strokeWidth={1} /></button>
+              </div>
+
+              {/* Main Image View */}
+              <motion.div 
+                drag="x"
+                dragConstraints={{ left: 0, right: 0 }}
+                onDragEnd={onDragEnd}
+                className="w-full h-full flex items-center justify-center pointer-events-auto cursor-grab active:cursor-grabbing"
+              >
                 <AnimatePresence mode="wait">
                   <motion.img 
                     key={activeImgIdx}
-                    initial={{ opacity: 0, x: 20 }}
+                    initial={{ opacity: 0, x: 40 }}
                     animate={{ opacity: 1, x: 0 }}
-                    exit={{ opacity: 0, x: -20 }}
-                    transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
+                    exit={{ opacity: 0, x: -40 }}
+                    transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
                     src={product.images[activeImgIdx]}
                     alt={product.name}
-                    className="max-w-full max-h-full object-contain drop-shadow-2xl"
+                    className="max-w-full max-h-[70vh] object-contain drop-shadow-[0_20px_60px_rgba(0,0,0,0.1)] pointer-events-none"
                   />
                 </AnimatePresence>
-              </div>
+              </motion.div>
 
-              {/* Mobile swipe controls */}
-              <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex space-x-8 md:hidden">
-                <button onClick={handlePrevImage} className="p-4 text-white"><ChevronLeft size={32} /></button>
-                <button onClick={handleNextImage} className="p-4 text-white"><ChevronRight size={32} /></button>
+              {/* Bottom Filmstrip UI */}
+              <div className="absolute bottom-12 flex flex-col items-center space-y-8">
+                 <div className="text-[10px] font-black text-stone-400 uppercase tracking-[0.6em]">
+                   {String(activeImgIdx + 1).padStart(2, '0')} — {String(product.images.length).padStart(2, '0')}
+                 </div>
+                 <div className="flex space-x-3">
+                    {product.images.map((_, idx) => (
+                      <button 
+                        key={idx} 
+                        onClick={() => setActiveImgIdx(idx)}
+                        className={`w-3 h-3 rounded-full border-2 transition-all ${activeImgIdx === idx ? 'border-[#C5A059] bg-[#C5A059] scale-125' : 'border-stone-200 hover:border-stone-400'}`}
+                      />
+                    ))}
+                 </div>
               </div>
             </motion.div>
           </motion.div>
