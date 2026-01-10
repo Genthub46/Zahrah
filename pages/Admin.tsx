@@ -113,7 +113,8 @@ const Admin: React.FC<AdminProps> = ({
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files) return;
-    Array.from(files).forEach(file => {
+    // Fix: Explicitly cast file to File to avoid "unknown" type issues with reader.readAsDataURL
+    Array.from(files).forEach((file: File) => {
       const reader = new FileReader();
       reader.onloadend = () => {
         setFormData(prev => ({
@@ -237,8 +238,9 @@ const Admin: React.FC<AdminProps> = ({
 
   // --- Analytics & Waitlist Helpers ---
   const analyticsData = useMemo(() => {
-    const totalRevenue = orders.reduce((sum, order) => sum + order.total, 0);
-    const viewsByProduct = viewLogs.reduce((acc, log) => {
+    // Fix: Added explicit types to prevent arithmetic operation errors on unknown types
+    const totalRevenue = (orders || []).reduce((sum: number, order: Order) => sum + (order.total || 0), 0);
+    const viewsByProduct = (viewLogs || []).reduce((acc: Record<string, number>, log: ViewLog) => {
       acc[log.productId] = (acc[log.productId] || 0) + 1;
       return acc;
     }, {} as Record<string, number>);
@@ -252,8 +254,11 @@ const Admin: React.FC<AdminProps> = ({
   }, [orders, viewLogs, products]);
 
   const groupedRequests = useMemo(() => {
-    return restockRequests.reduce((acc, req) => {
-      acc[req.productId] = (acc[req.productId] || []);
+    // Fix: Explicitly typed the accumulator to ensure the result matches Record<string, RestockRequest[]>
+    return (restockRequests || []).reduce((acc: Record<string, RestockRequest[]>, req: RestockRequest) => {
+      if (!acc[req.productId]) {
+        acc[req.productId] = [];
+      }
       acc[req.productId].push(req);
       return acc;
     }, {} as Record<string, RestockRequest[]>);
@@ -563,7 +568,8 @@ const Admin: React.FC<AdminProps> = ({
                     <button onClick={() => { if(confirm('Clear all?')) setRestockRequests([]) }} className="text-[9px] font-bold text-red-500 uppercase tracking-widest">Flush All Requests</button>
                   </div>
                   <div className="p-10 space-y-12">
-                    {Object.entries(groupedRequests).map(([pId, reqs]) => {
+                    {/* Fix: Explicitly cast Object.entries to provide proper types for reqs */}
+                    {(Object.entries(groupedRequests) as [string, RestockRequest[]][]).map(([pId, reqs]) => {
                       const p = products.find(prod => prod.id === pId);
                       return (
                         <div key={pId} className="space-y-4">
