@@ -90,24 +90,42 @@ const Home: React.FC<HomeProps> = ({ products, setProducts, layoutConfig, footer
           <img
             src="https://images.unsplash.com/photo-1549037173-e3b717902c57?auto=format&fit=crop&w=1920&q=80"
             alt="ZARA UK Luxury"
-            className="w-full h-full object-cover animate-kenburns"
+            className="w-full h-full object-cover animate-kenburns scale-110"
           />
-          <div className="absolute inset-0 bg-black/30 backdrop-blur-[1px]" />
+          <div className="absolute inset-0 bg-black/40 backdrop-blur-[0.5px]" />
         </div>
         
         <motion.div 
-          initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 1.2 }}
-          className="relative z-10 text-center px-4 max-w-5xl flex flex-col items-center"
+          initial={{ opacity: 0, y: 40 }} 
+          animate={{ opacity: 1, y: 0 }} 
+          transition={{ duration: 1.4, ease: [0.16, 1, 0.3, 1] }}
+          className="relative z-10 text-center px-4 max-w-6xl flex flex-col items-center"
         >
-          <motion.span initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.5 }} className="text-white font-bold text-[10px] uppercase block mb-6 tracking-[0.5em]">
-            London • Lagos • Global Excellence
+          <motion.span 
+            // Fix: Changed 'tracking' to 'letterSpacing' as 'tracking' is not a valid CSS property for Framer Motion.
+            initial={{ opacity: 0, letterSpacing: '0.1em' }} 
+            animate={{ opacity: 1, letterSpacing: '0.6em' }} 
+            transition={{ delay: 0.6, duration: 1 }} 
+            className="text-white font-bold text-[11px] uppercase block mb-8 tracking-[0.6em]"
+          >
+            LONDON • LAGOS • GLOBAL EXCELLENCE
           </motion.span>
-          <h1 className="text-6xl md:text-9xl text-white mb-8 font-bold tracking-tighter leading-none">
-            Elite Style <br /><span className="italic font-light serif text-stone-200">Curated Daily</span>
+          
+          <h1 className="flex flex-col mb-16 select-none">
+            <span className="text-6xl md:text-[140px] text-white font-bold tracking-tight leading-none serif">
+              Elite Style
+            </span>
+            <span className="text-5xl md:text-[110px] text-white font-light serif italic leading-none -mt-4 opacity-90">
+              Curated Daily
+            </span>
           </h1>
-          <a href="#boutique" className="inline-flex items-center space-x-6 bg-white text-stone-900 px-16 py-6 text-[11px] font-bold tracking-[0.4em] hover:bg-stone-100 transition-all shadow-2xl group">
-            <span>DISCOVER BOUTIQUE</span>
-            <ArrowRight className="w-5 h-5 transition-transform group-hover:translate-x-2" />
+
+          <a 
+            href="#boutique" 
+            className="inline-flex items-center justify-between min-w-[320px] md:min-w-[440px] bg-white text-stone-900 px-10 md:px-14 py-6 md:py-8 text-[11px] font-black tracking-[0.4em] transition-all shadow-[0_30px_60px_-15px_rgba(0,0,0,0.5)] hover:scale-[1.02] active:scale-[0.98] group"
+          >
+            <span className="uppercase">DISCOVER BOUTIQUE</span>
+            <ArrowRight className="w-6 h-6 transition-transform duration-500 group-hover:translate-x-3" strokeWidth={1.5} />
           </a>
         </motion.div>
       </section>

@@ -174,67 +174,77 @@ const Navbar: React.FC<NavbarProps> = ({ cartCount, wishlistCount }) => {
             initial={{ opacity: 0, x: '100%' }} 
             animate={{ opacity: 1, x: 0 }} 
             exit={{ opacity: 0, x: '100%' }} 
-            transition={{ type: "spring", damping: 25, stiffness: 200 }}
-            className="fixed inset-0 z-[11000] md:hidden bg-white overflow-y-auto px-8 pt-24 pb-12"
+            transition={{ type: "spring", damping: 30, stiffness: 200 }}
+            className="fixed inset-0 z-[11000] md:hidden bg-white overflow-y-auto px-8 py-12"
           >
-            <div className="absolute top-8 right-8">
-              <button onClick={() => setIsOpen(false)} className="text-stone-900">
-                <X size={32} />
-              </button>
-            </div>
-
-            <div className="flex flex-col space-y-12">
-              <div className="space-y-1">
-                <Link to="/" onClick={() => setIsOpen(false)} className="block text-2xl font-black tracking-[0.2em] uppercase text-stone-900">HOME</Link>
-              </div>
-
-              {!isAdmin && (
-                <div className="space-y-6">
-                  <p className="text-[10px] font-bold tracking-[0.4em] text-stone-400 uppercase">EXPLORE BRANDS</p>
-                  <div className="flex flex-col space-y-5 ml-2">
-                    {['ASHLUXE', 'ZARA UK', 'GUCCI'].map((brand) => (
-                      <button key={brand} onClick={() => navigateToBrand(brand)} className="text-left text-xl font-black tracking-[0.2em] uppercase text-stone-900 flex items-center group">
-                        <span>{brand}</span>
-                      </button>
-                    ))}
+            <div className="flex flex-col h-full">
+              <div className="flex justify-between items-center mb-16">
+                <div className="flex items-center">
+                  <Logo size={50} className="mr-3" />
+                  <div className="flex flex-col leading-none">
+                    <span className="text-[14px] font-black tracking-[0.3em] uppercase text-stone-900">ZARHRAH</span>
+                    <span className="text-[9px] gold-text font-bold tracking-[0.2em] uppercase">London • Lagos</span>
                   </div>
                 </div>
-              )}
-
-              <div className="space-y-1">
-                <a href="#accessories" onClick={(e) => handleNavClick(e, 'catalog')} className="block text-2xl font-black tracking-[0.2em] uppercase text-stone-900">BOUTIQUE</a>
+                <button onClick={() => setIsOpen(false)} className="p-2 text-stone-900 bg-stone-50 rounded-full">
+                  <X size={24} />
+                </button>
               </div>
 
-              <div className="pt-8 border-t border-stone-100 flex flex-col space-y-10">
-                <Link to="/wishlist" onClick={() => setIsOpen(false)} className="block text-sm font-black tracking-[0.3em] uppercase text-red-500 flex items-center">
-                  <Heart size={16} className="mr-3" /> MY WISHLIST ({wishlistCount})
-                </Link>
+              <div className="flex flex-col space-y-12">
                 <div className="space-y-6">
-                  <p className="text-[10px] font-bold tracking-[0.4em] text-stone-400 uppercase">ADMIN ACCESS</p>
-                  <Link to="/admin" onClick={() => setIsOpen(false)} className="block text-sm font-black tracking-[0.3em] uppercase text-[#C5A059] flex items-center">
-                    <Shield size={16} className="mr-3" /> ADMINISTRATIVE PORTAL
-                  </Link>
+                  <Link to="/" onClick={() => setIsOpen(false)} className="block text-sm font-black tracking-[0.4em] uppercase text-stone-900 border-l-2 border-stone-900 pl-4">HOME</Link>
+                  <a href="#accessories" onClick={(e) => handleNavClick(e, 'catalog')} className="block text-sm font-black tracking-[0.4em] uppercase text-stone-900 border-l-2 border-transparent hover:border-stone-900 pl-4 transition-all">BOUTIQUE</a>
                 </div>
-                
+
                 {!isAdmin && (
-                  <Link to="/checkout" onClick={() => setIsOpen(false)} className="block text-xl font-black tracking-[0.2em] gold-text uppercase">MY BAG ({cartCount})</Link>
+                  <div className="space-y-6">
+                    <p className="text-[9px] font-bold tracking-[0.5em] text-stone-400 uppercase ml-4">EXPLORE BRANDS</p>
+                    <div className="flex flex-col space-y-5 ml-4">
+                      {['ASHLUXE', 'ZARA UK', 'GUCCI'].map((brand) => (
+                        <button key={brand} onClick={() => navigateToBrand(brand)} className="text-left text-xs font-black tracking-[0.3em] uppercase text-stone-600 hover:text-stone-900 flex items-center group">
+                          <ChevronRight size={12} className="mr-3 text-[#C5A059]" />
+                          <span>{brand}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
                 )}
 
-                {isAdmin && (
-                  <button 
-                    onClick={() => { localStorage.removeItem('ZARHRAH_ADMIN_SESSION'); navigate('/admin'); window.location.reload(); }}
-                    className="block text-sm font-black tracking-[0.3em] uppercase text-red-500 flex items-center"
-                  >
-                    <LogOut size={16} className="mr-3" /> END PRIVATE SESSION
-                  </button>
-                )}
+                <div className="pt-8 border-t border-stone-100 flex flex-col space-y-10">
+                  <Link to="/wishlist" onClick={() => setIsOpen(false)} className="block text-[11px] font-black tracking-[0.4em] uppercase text-red-500 flex items-center ml-4">
+                    <Heart size={14} className="mr-3" /> MY WISHLIST ({wishlistCount})
+                  </Link>
+                  
+                  <div className="space-y-6">
+                    <p className="text-[9px] font-bold tracking-[0.5em] text-stone-400 uppercase ml-4">ADMIN ACCESS</p>
+                    <Link to="/admin" onClick={() => setIsOpen(false)} className="block text-[11px] font-black tracking-[0.4em] uppercase text-[#C5A059] flex items-center ml-4">
+                      <Shield size={14} className="mr-3" /> ADMINISTRATIVE PORTAL
+                    </Link>
+                  </div>
+                  
+                  {!isAdmin && (
+                    <Link to="/checkout" onClick={() => setIsOpen(false)} className="block text-sm font-black tracking-[0.4em] gold-text uppercase border-t border-stone-50 pt-8 flex items-center justify-between">
+                      <span>MY BAG</span>
+                      <span className="bg-[#C5A059] text-white px-3 py-1 rounded-full text-[10px]">{cartCount}</span>
+                    </Link>
+                  )}
+
+                  {isAdmin && (
+                    <button 
+                      onClick={() => { localStorage.removeItem('ZARHRAH_ADMIN_SESSION'); navigate('/admin'); window.location.reload(); }}
+                      className="block text-[11px] font-black tracking-[0.4em] uppercase text-red-500 flex items-center ml-4"
+                    >
+                      <LogOut size={14} className="mr-3" /> END PRIVATE SESSION
+                    </button>
+                  )}
+                </div>
               </div>
-            </div>
 
-            <div className="mt-20 pt-12 border-t border-stone-50">
-              <div className="flex flex-col items-center space-y-4">
-                <Logo size={80} className="opacity-10 grayscale" />
-                <p className="text-[8px] text-stone-300 font-bold tracking-[0.5em] uppercase text-center">ZARHRAH LUXURY • LONDON / LAGOS</p>
+              <div className="mt-auto pt-12 border-t border-stone-50">
+                <div className="flex flex-col items-center space-y-4">
+                  <p className="text-[7px] text-stone-300 font-bold tracking-[0.6em] uppercase text-center">ZARHRAH LUXURY • LONDON / LAGOS</p>
+                </div>
               </div>
             </div>
           </motion.div>
